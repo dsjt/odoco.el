@@ -54,8 +54,15 @@
   (sort time-list '<))
 
 (defun org-done:make-done-data (time-list)
-  
-  )
+  (let ((result ()))
+    (dolist (item time-list result)
+      (if (or (null result) (not (eq (org-done:filter-with-day item) (caar result))))
+          (setq result (cons (cons (org-done:filter-with-day item) 1) result))
+        (setq result (cons (cons (caar result) (1+ (cdar result))) (cdr result)))))))
+
+(defun org-done:filter-with-day (time)
+  (string-to-number (substring (number-to-string time) 0 8)))
+
 (defun org-done:amount-done ())
 
 (defun org-done:make-table-for-done ())
@@ -65,10 +72,10 @@
 (defun org-done:insert-table ()
   (interactive)
   (goto-char (point-min))
-  (org-done:search-done (org-done:done-time-list))
-  (org-done:sort-with-time (org-done:done-time-list))
-  (let ((done-data (org-done:make-done-data (time-list))))
-    (org-done:display-table (done-data))))
+  (org-done:search-done)
+  (setq org-done:done-time-list (org-done:sort-with-time org-done:done-time-list))
+  (let ((done-data (org-done:make-done-data time-list)))
+    (org-done:display-table done-data)))
   
   
   
