@@ -26,8 +26,31 @@
 
 
 (defvar org-done:done-time-list ())
-
 (defvar org-done:day-list '("日" "月" "火" "水" "木" "金" "土"))
+(defvar org-done:default-graph-file-name "org-done-graph.png")
+(defvar org-done:default-plt-conf-str ""
+  "this is a document")
+(defvar org-done:default-plt-file-name "org-done-plt.plt")
+(defvar org-done:default-graph-data-file-name "org-done-tmp-data.txt")
+(defvar org-done:default-plt-const ""
+  "this is a document")
+(defvar org-done:default-plt-option " w l title \"\""
+  "this is a document")
+
+(defcustom org-done:graph-file-name org-done:default-graph-name
+  "this is a document")
+(defcustom org-done:plt-file-name org-done:default-plt-file-name
+  "this is a document")
+;; (defcustom org-done:plt-conf-str org-done:default-plt-conf-str
+;;   "this is a document")
+(defcustom org-done:graph-data-file-name org-done:default-graph-data-file-name
+  "this is a document")
+(defcustom org-done:plt-const org-done:default-plt-const
+  "this is a document")
+(defcustom org-done:plt-option org-done:default-plt-option
+  "this is a document")
+(defcustom org-done:gnuplot-command "wgnuplot"
+  "this is a document")
 
 
 (defun org-done:add-time-list (done-list time)
@@ -85,40 +108,6 @@
   (setq org-done:done-time-list (org-done:sort-with-time org-done:done-time-list))
   (let ((done-data (org-done:make-done-data org-done:done-time-list)))
     (org-done:insert-table done-data)))
-
-
-
-
-
-(defvar org-done:default-graph-file-name "org-done-graph.png")
-(defcustom org-done:graph-file-name org-done:default-graph-name
-  "this is a document")
-
-(defvar org-done:default-plt-conf-str ""
-  "this is a document")
-;; (defcustom org-done:plt-conf-str org-done:default-plt-conf-str
-;;   "this is a document")
-
-(defvar org-done:default-plt-file-name "org-done-plt.plt")
-(defcustom org-done:plt-file-name org-done:default-plt-file-name
-  "this is a document")
-
-(defvar org-done:default-graph-data-file-name "org-done-tmp-data.txt")
-(defcustom org-done:graph-data-file-name org-done:default-graph-data-file-name
-  "this is a document")
-
-(defvar org-done:default-plt-const ""
-  "this is a document")
-(defcustom org-done:plt-const org-done:default-plt-const
-  "this is a document")
-
-(defvar org-done:default-plt-option " w l title \"\""
-  "this is a document")
-(defcustom org-done:plt-option org-done:default-plt-option
-  "this is a document")
-
-(defcustom org-done:gnuplot-command "wgnuplot"
-  "this is a document")
 
 (defun org-done:make-graph (tc-list)
   "時間と度数のコンスセルのリストから、グラフを生成する。"
