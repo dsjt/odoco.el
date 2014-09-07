@@ -27,6 +27,9 @@
 
 (defvar org-done:done-time-list ())
 
+(defvar org-done:day-list '("日" "月" "火" "水" "木" "金" "土"))
+
+
 (defun org-done:add-time-list (done-list time)
   (setq org-done:done-time-list (cons time done-list)))
 
@@ -45,10 +48,8 @@
       (apply 'concat time-str))))
 
 (defun org-done:delete-day (time-list)
-  (dolist (day day-list)
+  (dolist (day org-done:day-list)
     (delete day time-list)))
-
-(defvar day-list '("日" "月" "火" "水" "木" "金" "土"))
 
 (defun org-done:sort-with-time (time-list)
   (sort time-list '>))
@@ -62,7 +63,6 @@
 
 (defun org-done:filter-with-day (time)
   (string-to-number (substring (number-to-string time) 0 8)))
-
 
 (defun org-done:insert-table (done-data)
   (dolist (data done-data)
@@ -86,7 +86,87 @@
   (let ((done-data (org-done:make-done-data org-done:done-time-list)))
     (org-done:insert-table done-data)))
 
-(provide 'org-done-count)
+
+
+
+
+(defvar org-done:default-graph-file-name "org-done-graph.png")
+(defcustom org-done:graph-file-name org-done:default-graph-name
+  "this is a document")
+
+(defvar org-done:default-plt-conf-str ""
+  "this is a document")
+;; (defcustom org-done:plt-conf-str org-done:default-plt-conf-str
+;;   "this is a document")
+
+(defvar org-done:default-plt-file-name "org-done-plt.plt")
+(defcustom org-done:plt-file-name org-done:default-plt-file-name
+  "this is a document")
+
+(defvar org-done:default-graph-data-file-name "org-done-tmp-data.txt")
+(defcustom org-done:graph-data-file-name org-done:default-graph-data-file-name
+  "this is a document")
+
+(defvar org-done:default-plt-const ""
+  "this is a document")
+(defcustom org-done:plt-const org-done:default-plt-const
+  "this is a document")
+
+(defvar org-done:default-plt-option " w l title \"\""
+  "this is a document")
+(defcustom org-done:plt-option org-done:default-plt-option
+  "this is a document")
+
+(defcustom org-done:gnuplot-command "wgnuplot"
+  "this is a document")
+
+(defun org-done:make-graph (tc-list)
+  "時間と度数のコンスセルのリストから、グラフを生成する。"
+  (let ((gdata-file org-done:graph-data-file-name)
+        (gpic-file org-done:graph-file-name)
+        (plt-file org-done:plt-file-name))
+    (org-done:make-graph-data-file tc-list gdata-file)
+    (org-done:submit-gnuplot gdata-file gpic-file plt-file)
+    (org-done:insert-graph gpic-file)))
+
+(defun org-done:make-graph-data-file (tc-list gdata-file)
+  "tc-listをgdata-fileに書き込む"
+  (let ((str ""))
+    (dolist (point tc-list)
+      (let ((x (car point))
+            (y (cdr point)))
+        (setq str (concat (number-to-string x) " " (number-to-string y) "\n" str))))
+    (write-region str nil gdata-file)))
+
+(defun org-done:make-plt-file (gdata-file gpic-file plt-file)
+  "pltファイルの作成"
+  (let ((plt-conf (org-done:make-plt-conf gdata-file
+                                          gpic-file 
+                                          org-done:plt-const
+                                          org-done:plt-option))) ;文字列の作成
+    (write-region plt-conf nil plt-file)))
+
+(defun org-done:make-plt-conf (gdata-file gpic-file plt-const plt-option)
+  "pltファイルに書き込む文字列の作成"
+  (let ((extention (cadr (split-string gpic-file "\\."))))
+    (let ((first (concat "set terminal " extention))
+          (second (concat "set output \"" gpic-file "\""))
+          (third plt-const)
+          (fourth (concat "plot \"" gdata-file "\"" plt-option)))
+      (concat first "\n" second "\n" third "\n" fourth))))
+
+(defun org-done:submit-gnuplot (gdata-file gpic-file plt-file)
+  "引数からpltファイルを生成し、gnuplotに実行させる"
+  (org-done:make-plt-file gdata-file gpic-file plt-file)
+  (start-process "emacs-wgnuplot" nil org-done:gnuplot-command plt-file))
+
+(defun org-done:insert-graph (gpic-name)
+  "gnuplotで生成した画像を挿入"
+  (insert "\n")
+  (insert-image (create-image gpic-name))
+  (insert "\n"))
+
+(provide 'org-done:count)
 ;;; org-done-count.el ends here
 
 
