@@ -117,6 +117,9 @@
 (defcustom org-done:plt-option org-done:default-plt-option
   "this is a document")
 
+(defcustom org-done:gnuplot-command "wgnuplot"
+  "this is a document")
+
 (defun org-done:make-graph (tc-list)
   (let ((gdata-file org-done:graph-data-file-name)
         (gpic-file org-done:graph-file-name)
@@ -138,31 +141,26 @@
   "pltファイルの作成"
   (let ((plt-conf (org-done:make-plt-conf gdata-file
                                           gpic-file 
-                                          plt-file 
-                                          plt-conf
                                           org-done:plt-const
                                           org-done:plt-option))) ;文字列の作成
-    (org-done:make-plt-conf gdata-file gpic-file plt-file plt-conf)
     (write-region plt-conf nil plt-file)))
 
-(defun org-done:make-plt-conf (gdata-file gpic-file plt-file plt-conf plt-const plt-option)
+(defun org-done:make-plt-conf (gdata-file gpic-file plt-const plt-option)
   "pltファイルに書き込む文字列の作成"
   (let ((extention (cadr (split-string gpic-file "\\."))))
     (let ((first (concat "set terminal " extention))
-          (second (concat "set output " gpic-file))
+          (second (concat "set output \"" gpic-file "\""))
           (third plt-const)
-          (fourth (concat "plot " gdata-file " plt-option")))
-      (setq plt-conf (concat first "\n" second "\n" third "\n" fourth)))))
+          (fourth (concat "plot \"" gdata-file "\"" plt-option)))
+      (concat first "\n" second "\n" third "\n" fourth))))
 
 (defun org-done:submit-gnuplot (gdata-file gpic-file plt-file)
+  "引数からpltファイルを生成し、gnuplotに実行させる"
   (org-done:make-plt-file gdata-file gpic-file plt-file)
-  (start-process "emacs-wgnuplot" nil "wgnuplot" plt-file))
+  (start-process "emacs-wgnuplot" nil org-done:gnuplot-command plt-file))
 
-(defun org-done:insert-graph (graph-name)
-  (insert-img (create-image graph-name)))
-
-
-
+(defun org-done:insert-graph (gpic-name)
+  (insert-image (create-image gpic-name)))
 
 (provide 'org-done:count)
 ;;; org-done-count.el ends here
