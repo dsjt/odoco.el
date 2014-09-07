@@ -31,7 +31,7 @@
   (setq org-done:done-time-list (cons time done-list)))
 
 (defun org-done:search-done ()
-  (interactive)
+  (interactive)                         ;scheduled delete
   (setq org-done:done-time-list ())
   (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)" nil t)
     (let ((time (string-to-number (org-done:format-time (match-string 4)))))
@@ -51,7 +51,7 @@
 (defvar day-list '("ì˙" "åé" "âŒ" "êÖ" "ñÿ" "ã‡" "ìy"))
 
 (defun org-done:sort-with-time (time-list)
-  (sort time-list '<))
+  (sort time-list '>))
 
 (defun org-done:make-done-data (time-list)
   (let ((result ()))
@@ -63,19 +63,28 @@
 (defun org-done:filter-with-day (time)
   (string-to-number (substring (number-to-string time) 0 8)))
 
-(defun org-done:amount-done ())
 
-(defun org-done:make-table-for-done ())
+(defun org-done:insert-table (done-data)
+  (dolist (data done-data)
+    (let ((day (org-done:format-day-from-number (car data)))
+          (count (cdr data)))
+      (insert (concat day " " (number-to-string count) "\n")))))
 
-(defun org-done:display-table ())
+(defun org-done:format-day-from-number (day)
+  (let* ((str (number-to-string day))
+         (year (substring str 0 4))
+         (month (substring str 4 6))
+         (day (substring str 6 8)))
+    (concat year " " month "/" day)))
 
-(defun org-done:insert-table ()
+(defun org-done:make-table ()
   (interactive)
-  (goto-char (point-min))
-  (org-done:search-done)
+  (save-excursion
+    (goto-char (point-min))
+    (org-done:search-done))
   (setq org-done:done-time-list (org-done:sort-with-time org-done:done-time-list))
-  (let ((done-data (org-done:make-done-data time-list)))
-    (org-done:display-table done-data)))
+  (let ((done-data (org-done:make-done-data org-done:done-time-list)))
+    (org-done:insert-table done-data)))
 
 (provide 'org-done-count)
 ;;; org-done-count.el ends here
