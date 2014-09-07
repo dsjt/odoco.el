@@ -86,36 +86,49 @@
   (let ((done-data (org-done:make-done-data org-done:done-time-list)))
     (org-done:insert-table done-data)))
 
-(defun org-done:make-graph (time-count-list)
-  (let ((graph-data-file-name org-done:default-graph-file-name)
-        (graph-name org-done:graph-name))
-    (org-done:make-graphdata-file time-count-list graph-data-file-name)
-    (org-done:submit-gnuplot graph-data-file-name graph-name)
-    (org-done:insert-graph graph-name)))
 
-(defun org-done:make-graphdata-file (tc-list file-name)
+
+
+
+(defvar org-done:default-graph-file-name "org-done-graph.png")
+(defcustom org-done:graph-file-name org-done:default-graph-name
+  "this is a document")
+
+(defvar org-done:default-plt-conf-str (concat "set terminal png\nset output " org-done:default-graph-file-name "\nplot " org-done:default-graph-data-file-name)
+  "this is a document")
+(defcustom org-done:plt-conf-str org-done:default-conf-str
+  "this is a document")
+
+(defvar org-done:default-plt-file-name "org-done-plt.plt")
+(defcustom org-done:plt-file-name org-done:default-plt-file-name
+  "this is a document")
+
+(defvar org-done:default-graph-data-file-name "org-done-tmp-data.txt")
+(defcustom org-done:graph-data-file-name org-done:default-graph-data-file-name
+  "this is a document")
+
+(defun org-done:make-graph (tc-list)
+  (let ((gdata-file org-done:graph-data-file-name)
+        (gpic-file org-done:graph-file-name))
+    (org-done:make-graphdata-file tc-list gdata-file)
+    (org-done:submit-gnuplot gdata-file gpic-file)
+    (org-done:insert-graph gpic-file)))
+
+(defun org-done:make-graph-data-file (tc-list gdata-file)
+  "tc-listÇgdata-fileÇ…èëÇ´çûÇﬁ"
   (let ((str ""))
     (dolist (point tc-list)
       (let ((x (car point))
             (y (cdr point)))
         (setq str (concat (number-to-string x) " " (number-to-string y) "\n" str))))
-    (write-region str nil file-name)))
+    (write-region str nil gdata-file)))
 
 (defun org-done:make-plt-file (plt-file-name)
   (unless (file-exists-p file-name)
     (write-region default-conf-str nil plt-file-name)))
 
-(defcustom org-done:default-conf-str (concat "set terminal png\nset output " org-done:default-graph-file-name "\nplot " org-done:default-graph-data-file-name)
-  "this is a document")
-
 (defun org-done:submit-gnuplot (file-name graph-name)
   (start-process "emacs-wgnuplot" "*wgnuplot*" "wgnuplot" "load" file-name))
-
-(defvar org-done:default-graph-name "org-done-graph.png")
-(defcustom org-done:graph-name org-done:default-graph-name
-  "this is a document")
-
-(defvar org-done:default-graph-file-name)
 
 (defun org-done:insert-graph (graph-name)
   (insert-img (create-image graph-name)))
