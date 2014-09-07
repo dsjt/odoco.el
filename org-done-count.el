@@ -76,6 +76,9 @@
   (setq org-done:done-time-list (org-done:sort-with-time org-done:done-time-list))
   (let ((done-data (org-done:make-done-data time-list)))
     (org-done:display-table done-data)))
+
+
+
   
 (provide 'org-done-count)
 ;;; org-done-count.el ends here
