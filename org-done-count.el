@@ -78,6 +78,7 @@
     (org-done:display-table done-data)))
 
 (this is a test too.)
+(this is a 3rd test.)
 (provide 'org-done-count)
 ;;; org-done-count.el ends here
 
