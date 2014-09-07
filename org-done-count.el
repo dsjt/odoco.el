@@ -112,7 +112,7 @@
 (defcustom org-done:plt-const org-done:default-plt-const
   "this is a document")
 
-(defvar org-done:default-plt-option "w l"
+(defvar org-done:default-plt-option " w l title \"\""
   "this is a document")
 (defcustom org-done:plt-option org-done:default-plt-option
   "this is a document")
@@ -121,10 +121,11 @@
   "this is a document")
 
 (defun org-done:make-graph (tc-list)
+  "時間と度数のコンスセルのリストから、グラフを生成する。"
   (let ((gdata-file org-done:graph-data-file-name)
         (gpic-file org-done:graph-file-name)
         (plt-file org-done:plt-file-name))
-    (org-done:make-graphdata-file tc-list gdata-file)
+    (org-done:make-graph-data-file tc-list gdata-file)
     (org-done:submit-gnuplot gdata-file gpic-file plt-file)
     (org-done:insert-graph gpic-file)))
 
@@ -160,7 +161,10 @@
   (start-process "emacs-wgnuplot" nil org-done:gnuplot-command plt-file))
 
 (defun org-done:insert-graph (gpic-name)
-  (insert-image (create-image gpic-name)))
+  "gnuplotで生成した画像を挿入"
+  (insert "\n")
+  (insert-image (create-image gpic-name))
+  (insert "\n"))
 
 (provide 'org-done:count)
 ;;; org-done-count.el ends here
