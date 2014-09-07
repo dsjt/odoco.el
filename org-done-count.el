@@ -27,6 +27,9 @@
 
 (defvar org-done:done-time-list ())
 
+(defvar org-done:day-list '("“ú" "ŒŽ" "‰Î" "…" "–Ø" "‹à" "“y"))
+
+
 (defun org-done:add-time-list (done-list time)
   (setq org-done:done-time-list (cons time done-list)))
 
@@ -45,10 +48,8 @@
       (apply 'concat time-str))))
 
 (defun org-done:delete-day (time-list)
-  (dolist (day day-list)
+  (dolist (day org-done:day-list)
     (delete day time-list)))
-
-(defvar day-list '("“ú" "ŒŽ" "‰Î" "…" "–Ø" "‹à" "“y"))
 
 (defun org-done:sort-with-time (time-list)
   (sort time-list '>))
@@ -62,7 +63,6 @@
 
 (defun org-done:filter-with-day (time)
   (string-to-number (substring (number-to-string time) 0 8)))
-
 
 (defun org-done:insert-table (done-data)
   (dolist (data done-data)
@@ -86,7 +86,44 @@
   (let ((done-data (org-done:make-done-data org-done:done-time-list)))
     (org-done:insert-table done-data)))
 
-(provide 'org-done-count)
+(defun org-done:make-graph (time-count-list)
+  (let ((graph-data-file-name org-done:default-graph-file-name)
+        (graph-name org-done:graph-name))
+    (org-done:make-graphdata-file time-count-list graph-data-file-name)
+    (org-done:submit-gnuplot graph-data-file-name graph-name)
+    (org-done:insert-graph graph-name)))
+
+(defun org-done:make-graphdata-file (tc-list file-name)
+  (let ((str ""))
+    (dolist (point tc-list)
+      (let ((x (car point))
+            (y (cdr point)))
+        (setq str (concat (number-to-string x) " " (number-to-string y) "\n" str))))
+    (write-region str nil file-name)))
+
+(defun org-done:make-plt-file (plt-file-name)
+  (unless (file-exists-p file-name)
+    (write-region default-conf-str nil plt-file-name)))
+
+(defcustom org-done:default-conf-str (concat "set terminal png\nset output " org-done:default-graph-file-name "\nplot " org-done:default-graph-data-file-name)
+  "this is a document")
+
+(defun org-done:submit-gnuplot (file-name graph-name)
+  (start-process "emacs-wgnuplot" "*wgnuplot*" "wgnuplot" "load" file-name))
+
+(defvar org-done:default-graph-name "org-done-graph.png")
+(defcustom org-done:graph-name org-done:default-graph-name
+  "this is a document")
+
+(defvar org-done:default-graph-file-name)
+
+(defun org-done:insert-graph (graph-name)
+  (insert-img (create-image graph-name)))
+
+
+
+
+(provide 'org-done:count)
 ;;; org-done-count.el ends here
 
 
