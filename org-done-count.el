@@ -94,10 +94,10 @@
 (defcustom org-done:graph-file-name org-done:default-graph-name
   "this is a document")
 
-(defvar org-done:default-plt-conf-str (concat "set terminal png\nset output \"" org-done:default-graph-file-name "\"\nplot \"" org-done:default-graph-data-file-name "\" w l")
+(defvar org-done:default-plt-conf-str ""
   "this is a document")
-(defcustom org-done:plt-conf-str org-done:default-plt-conf-str
-  "this is a document")
+;; (defcustom org-done:plt-conf-str org-done:default-plt-conf-str
+;;   "this is a document")
 
 (defvar org-done:default-plt-file-name "org-done-plt.plt")
 (defcustom org-done:plt-file-name org-done:default-plt-file-name
@@ -107,11 +107,22 @@
 (defcustom org-done:graph-data-file-name org-done:default-graph-data-file-name
   "this is a document")
 
+(defvar org-done:default-plt-const ""
+  "this is a document")
+(defcustom org-done:plt-const org-done:default-plt-const
+  "this is a document")
+
+(defvar org-done:default-plt-option "w l"
+  "this is a document")
+(defcustom org-done:plt-option org-done:default-plt-option
+  "this is a document")
+
 (defun org-done:make-graph (tc-list)
   (let ((gdata-file org-done:graph-data-file-name)
-        (gpic-file org-done:graph-file-name))
+        (gpic-file org-done:graph-file-name)
+        (plt-file org-done:plt-file-name))
     (org-done:make-graphdata-file tc-list gdata-file)
-    (org-done:submit-gnuplot gdata-file gpic-file)
+    (org-done:submit-gnuplot gdata-file gpic-file plt-file)
     (org-done:insert-graph gpic-file)))
 
 (defun org-done:make-graph-data-file (tc-list gdata-file)
@@ -123,13 +134,29 @@
         (setq str (concat (number-to-string x) " " (number-to-string y) "\n" str))))
     (write-region str nil gdata-file)))
 
-(defun org-done:make-plt-file (plt-file)
+(defun org-done:make-plt-file (gdata-file gpic-file plt-file)
   "pltファイルの作成"
-  (unless (file-exists-p plt-file)
-    (write-region org-done:plt-conf-str nil plt-file)))
+  (let ((plt-conf (org-done:make-plt-conf gdata-file
+                                          gpic-file 
+                                          plt-file 
+                                          plt-conf
+                                          org-done:plt-const
+                                          org-done:plt-option))) ;文字列の作成
+    (org-done:make-plt-conf gdata-file gpic-file plt-file plt-conf)
+    (write-region plt-conf nil plt-file)))
 
-(defun org-done:submit-gnuplot (file-name graph-name)
-  (start-process "emacs-wgnuplot" "*wgnuplot*" "wgnuplot" "load" file-name))
+(defun org-done:make-plt-conf (gdata-file gpic-file plt-file plt-conf plt-const plt-option)
+  "pltファイルに書き込む文字列の作成"
+  (let ((extention (cadr (split-string gpic-file "\\."))))
+    (let ((first (concat "set terminal " extention))
+          (second (concat "set output " gpic-file))
+          (third plt-const)
+          (fourth (concat "plot " gdata-file " plt-option")))
+      (setq plt-conf (concat first "\n" second "\n" third "\n" fourth)))))
+
+(defun org-done:submit-gnuplot (gdata-file gpic-file plt-file)
+  (org-done:make-plt-file gdata-file gpic-file plt-file)
+  (start-process "emacs-wgnuplot" nil "wgnuplot" plt-file))
 
 (defun org-done:insert-graph (graph-name)
   (insert-img (create-image graph-name)))
