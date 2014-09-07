@@ -77,9 +77,6 @@
   (let ((done-data (org-done:make-done-data time-list)))
     (org-done:display-table done-data)))
 
-(this is a test too.)
-(this is a 3rd test.)
-(this is a 4rd test.)
 (provide 'org-done-count)
 ;;; org-done-count.el ends here
 
