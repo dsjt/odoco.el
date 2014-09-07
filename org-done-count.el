@@ -94,9 +94,9 @@
 (defcustom org-done:graph-file-name org-done:default-graph-name
   "this is a document")
 
-(defvar org-done:default-plt-conf-str (concat "set terminal png\nset output " org-done:default-graph-file-name "\nplot " org-done:default-graph-data-file-name)
+(defvar org-done:default-plt-conf-str (concat "set terminal png\nset output \"" org-done:default-graph-file-name "\"\nplot \"" org-done:default-graph-data-file-name "\" w l")
   "this is a document")
-(defcustom org-done:plt-conf-str org-done:default-conf-str
+(defcustom org-done:plt-conf-str org-done:default-plt-conf-str
   "this is a document")
 
 (defvar org-done:default-plt-file-name "org-done-plt.plt")
@@ -123,9 +123,10 @@
         (setq str (concat (number-to-string x) " " (number-to-string y) "\n" str))))
     (write-region str nil gdata-file)))
 
-(defun org-done:make-plt-file (plt-file-name)
-  (unless (file-exists-p file-name)
-    (write-region default-conf-str nil plt-file-name)))
+(defun org-done:make-plt-file (plt-file)
+  "pltÉtÉ@ÉCÉãÇÃçÏê¨"
+  (unless (file-exists-p plt-file)
+    (write-region org-done:plt-conf-str nil plt-file)))
 
 (defun org-done:submit-gnuplot (file-name graph-name)
   (start-process "emacs-wgnuplot" "*wgnuplot*" "wgnuplot" "load" file-name))
