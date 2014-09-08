@@ -32,8 +32,7 @@
 
 
 
-(defvar odoco:done-time-list ())
-(defvar odoco:day-list '("日" "月" "火" "水" "木" "金" "土"))
+(defvar odoco:time-list ())
 (defvar odoco:default-graph-file-name "odoco-graph.png")
 (defvar odoco:default-plt-conf-str ""
   "this is a document")
@@ -64,7 +63,7 @@
   "時間リストに時間を追加して返す。"
   (cons time time-list))
 
-(defun odoco:search-done ()
+(defun odoco:make-time-list ()
   "バッファの先頭から、DONE~CLOSEDを探して、時間リストに追加する"
   (let (time-list)
     (save-excursion
@@ -72,21 +71,41 @@
       (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
                                 nil
                                 t)
-        (let ((time (string-to-number (odoco:format-time (match-string 4)))))
+        (let ((time (odoco:encode-time (match-string 4))))
           (setq time-list (odoco:add-time-list time-list time)))))
-    time-list))
+    (odoco:sort-with-time time-list)))
 
-(defun odoco:format-time (time)
-  (let ((len (length time)))
-    ;; no need next line
-    ;; (set-text-properties 0 (length time) nil time)
-    (let ((time-str (split-string (substring time 1 (- len 1)) "[- :]")))
-      (odoco:delete-day time-str)
-      (apply 'concat time-str))))
+(defun odoco:encode-time (dtime)
+  "[2014/09/20 日 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
+  (let ((year (string-to-number (substring dtime 1 5)))
+        (month (string-to-number (substring dtime 6 8)))
+        (day (string-to-number (substring dtime 9 11)))
+        (hour (string-to-number (substring dtime 14 16)))
+        (min (string-to-number (substring dtime 17 19)))
+        (sec 0)
+        (dow (let ((d (substring dtime 12 13)))p
+               (cond ((equal d "日") 0)
+                     ((equal d "月") 1)
+                     ((equal d "火") 2)
+                     ((equal d "水") 3)
+                     ((equal d "木") 4)
+                     ((equal d "金") 5)
+                     ((equal d "土") 6)))))
+    (list sec min hour day month year dow nil 32400)))
 
-(defun odoco:delete-day (time-split-list)
-  (dolist (day odoco:day-list)
-    (delete day time-split-list)))
+(defun odoco:decode-time (etime)
+  "'(0 24 11 20 9 2014 0 nil 32400) -> [2014/09/20 日 11:24]"
+  (let ((dow (cond ((equal (nth 6 etime) 0) "日")
+                    ((equal (nth 6 etime) 1) "月")
+                    ((equal (nth 6 etime) 2) "火")
+                    ((equal (nth 6 etime) 3) "水")
+                    ((equal (nth 6 etime) 4) "木")
+                    ((equal (nth 6 etime) 5) "金")
+                    ((equal (nth 6 etime) 6) "土")))
+        (str (format-time-string "[%Y/%m/%d buf %R]"
+                                 (apply 'encode-time etime))))
+    (replace-regexp-in-string "buf" dow str)))
+
 
 (defun odoco:sort-with-time (time-list)
   (sort time-list '>))
@@ -112,23 +131,24 @@
          (year (substring str 0 4))
          (month (substring str 4 6))
          (day (substring str 6 8)))
-    (concat year " " month "/" day)))
+    (concat month "/" day)))
 
 (defun odoco:table ()
   (interactive)
-  (odoco:make-table odoco:done-time-list))
+  (odoco:make-table))
 
-(defun odoco:make-table (time-list)
-  (setq time-list (odoco:sort-with-time (odoco:search-done)))
-  (let ((done-data (odoco:make-done-data time-list)))
-    (odoco:insert-table done-data)))
+(defun odoco:make-table ()
+  (let (time-list)
+    (setq time-list (odoco:make-time-list))
+    (let ((done-data (odoco:make-done-data time-list)))
+      (odoco:insert-table done-data))))
 
-(defun odoco:graph ()
+(defun odoco:graph (&optional interval)
   "graphの生成"
   (interactive)
-  (setq odoco:done-time-list (odoco:search-done odoco:done-time-list))
-  (setq odoco:done-time-list (odoco:sort-with-time odoco:done-time-list))
-  (let ((done-data (odoco:make-done-data odoco:done-time-list)))
+  (or interval (setq interval 'week))
+  (setq odoco:time-list (odoco:make-time-list odoco:time-list))
+  (let ((done-data (odoco:make-done-data odoco:time-list)))
     (odoco:make-graph done-data)))
 
 (defun odoco:make-graph (tc-list)
@@ -146,7 +166,11 @@
     (dolist (point tc-list)
       (let ((x (car point))
             (y (cdr point)))
-        (setq str (concat (number-to-string x) " " (number-to-string y) "\n" str))))
+        (setq str (concat (number-to-string x)
+                          " "
+                          (number-to-string y)
+                          "\n"
+                          str))))
     (write-region str nil gdata-file)))
 
 (defun odoco:make-plt-file (gdata-file gpic-file plt-file)
