@@ -129,15 +129,28 @@ if a1 > b1 => t
           (t t))))
 
 
-(defun odoco:make-done-data (time-list)
-  (let ((result ()))
-    (dolist (item time-list result)
-      (if (or (null result) (not (eq (odoco:filter-with-day item) (caar result))))
-          (setq result (cons (cons (odoco:filter-with-day item) 1) result))
-        (setq result (cons (cons (caar result) (1+ (cdar result))) (cdr result)))))))
+(defun odoco:make-count-data (time-list interval)
+  (let (result)
+    (dolist (time time-list result)
+      (let ((curr (odoco:filter time interval)))
+        (if (null result)
+            (list (cons (odoco:filter time interval) 1))
+          (let ((before (caar result)))
+            (if (equal curr before)
+                (odoco:add-count-data (cons before (1+ (cdar result)))
+                                      (cdr result))
+              (odoco:add-count-data (cons curr 1)
+                                    result))))))))
+(defun odoco:filter (time interval)
+  "time‚©‚çAƒVƒ“ƒ{ƒ‹intervel‚É‡‚í‚¹‚Ä•¶Žš—ñ‚ðì¬"
+  (let ((time-pair (apply 'encode-time time)))
+    (cond ((equal interval 'day) (format-time-string "%m/%d" time-pair))
+          (t (format-time-string "%m/%d" time-pair)))))
 
-(defun odoco:filter-with-day (time)
-  (string-to-number (substring (number-to-string time) 0 8)))
+(defun odoco:add-count-data (item data)
+  (cons item data))
+
+(defun odoco)
 
 (defun odoco:insert-table (done-data)
   (dolist (data done-data)
@@ -156,10 +169,12 @@ if a1 > b1 => t
   (interactive)
   (odoco:make-table))
 
-(defun odoco:make-table ()
+(defun odoco:make-table (&optional interval period)
+  (or interval (setq interval 'day))
+  (or period (setq period 'week))
   (let (time-list)
     (setq time-list (odoco:make-time-list))
-    (let ((done-data (odoco:make-done-data time-list)))
+    (let ((done-data (odoco:make-count-data time-list interval)))
       (odoco:insert-table done-data))))
 
 (defun odoco:graph (&optional interval)
@@ -167,7 +182,7 @@ if a1 > b1 => t
   (interactive)
   (or interval (setq interval 'week))
   (setq odoco:time-list (odoco:make-time-list odoco:time-list))
-  (let ((done-data (odoco:make-done-data odoco:time-list)))
+  (let ((done-data (odoco:make-count-data odoco:time-list)))
     (odoco:make-graph done-data)))
 
 (defun odoco:make-graph (tc-list)
