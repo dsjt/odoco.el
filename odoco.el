@@ -106,28 +106,22 @@
                                  (apply 'encode-time etime))))
     (replace-regexp-in-string "buf" dow str)))
 
-
 (defun odoco:sort-with-time (time-list)
   (sort time-list 'odoco:compare))
 
 (defun odoco:compare (time1 time2)
-  "time1 : (a1 a2) 
-time2 : (b1 b2).
-if a1 > b1 => t
-   a1 < b1 => nil
-   a1 = b1 and a2 > b2 t
-   a1 = b1 and a2 < b2 nil
-   a1 = b1 and a2 = b2 t"
-  (let ((a1 (car time1))
-        (a2 (cadr time1))
-        (b1 (car time2))
-        (b2 (cadr time2)))
-    (cond ((> a1 b1) t)
-          ((< a1 b1) nil)
-          ((> a2 b2) t)
-          ((< a2 b2) nil)
-          (t t))))
-
+  "日時が後のほうが前に来る破壊的ソート。"
+  (let ((etime1 (apply 'encode-time time1))
+        (etime2 (apply 'encode-time time2)))
+    (let ((a1 (car etime1))
+          (a2 (cadr etime1))
+          (b1 (car etime2))
+          (b2 (cadr etime2)))
+      (cond ((> a1 b1) t)
+            ((< a1 b1) nil)
+            ((> a2 b2) t)
+            ((< a2 b2) nil)
+            (t t)))))
 
 (defun odoco:make-count-data (time-list interval)
   (let (result)
@@ -142,6 +136,7 @@ if a1 > b1 => t
                                                    (cdr result)))
               (setq result (odoco:add-count-data (cons curr 1)
                                                  result)))))))))
+
 (defun odoco:filter (time interval)
   "timeから、シンボルintervelに合わせて文字列を作成"
   (let ((time-pair (apply 'encode-time time)))
@@ -151,18 +146,12 @@ if a1 > b1 => t
 (defun odoco:add-count-data (item data)
   (cons item data))
 
-(defun odoco:insert-table (done-data)
-  (dolist (data done-data)
-    (let ((day (car data))
-          (count (cdr data)))
-      (insert (concat day " " (number-to-string count) "\n")))))
-
-;; (defun odoco:format-day-from-number (day)
-;;   (let* ((str (number-to-string day))
-;;          (year (substring str 0 4))
-;;          (month (substring str 4 6))
-;;          (day (substring str 6 8)))
-;;     (concat month "/" day)))
+(defun odoco:insert-table (done-data period)
+  (let ((period-data (odoco:make-period-data period)))
+    (dolist (data done-data)
+      (let ((day (car data))
+            (count (cdr data)))
+        (insert (concat day " " (number-to-string count) "\n"))))))
 
 (defun odoco:table ()
   (interactive)
@@ -174,7 +163,7 @@ if a1 > b1 => t
   (let (time-list)
     (setq time-list (odoco:make-time-list))
     (let ((done-data (odoco:make-count-data time-list interval)))
-      (odoco:insert-table done-data))))
+      (odoco:insert-table done-data period))))
 
 (defun odoco:graph (&optional interval)
   "graphの生成"
@@ -235,6 +224,5 @@ if a1 > b1 => t
   (insert "\n"))
 
 (provide 'odoco:count)
-;;; odoco-count.el ends here
-
+;;; odoco.el ends here
 
