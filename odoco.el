@@ -23,16 +23,18 @@
 
 ;; 
 ;;TODO
-;;やるべきことはたくさんあります。
-;;*グラフの色の設定を可能にする。
-;;＊決まった場所にグラフや表を挿入、更新できるように。
-;;グラフや表を別ウインドウに表示できるように。
-;;表やグラフのデータを、日毎、週ごと、月ごと、n日毎に出力できるように
+
+;;1. make graph colar able to change.
+;;2. insert and update a table and a graph at a certain point.
+;;3. display a table and a graph at another window or frame.
+;;4. make a data for a table or graph output with all kinds of period.
+;;5. make some kinds of string for search regexp
+
 ;;; Code:
 
 (require 'cl)
 
-(defvar odoco:time-list ())
+(defvar odoco:time-list nil)
 (defvar odoco:default-graph-file-name "odoco-graph.png")
 (defvar odoco:default-plt-conf-str ""
   "this is a document")
@@ -47,8 +49,6 @@
   "this is a document")
 (defcustom odoco:plt-file-name odoco:default-plt-file-name
   "this is a document")
-;; (defcustom odoco:plt-conf-str odoco:default-plt-conf-str
-;;   "this is a document")
 (defcustom odoco:graph-data-file-name odoco:default-graph-data-file-name
   "this is a document")
 (defcustom odoco:plt-const odoco:default-plt-const
@@ -60,11 +60,11 @@
 
 
 (defun odoco:add-time-list (time-list time)
-  "時間リストに時間を追加して返す。"
+  "Add time to time-list."
   (cons time time-list))
 
 (defun odoco:make-time-list ()
-  "バッファの先頭から、DONE~CLOSEDを探して、時間リストに追加する"
+  "Search \"DONE ... CLOSED ...\", and add global time-list"
   (let (time-list)
     (save-excursion
       (goto-char (point-min))
@@ -76,7 +76,8 @@
     (odoco:sort-with-time time-list)))
 
 (defun odoco:encode-time (dtime)
-  "[2014/09/20 日 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
+  "Encode the time from buffer to a list format.
+[2014/09/20 日 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
   (let ((year (string-to-number (substring dtime 1 5)))
         (month (string-to-number (substring dtime 6 8)))
         (day (string-to-number (substring dtime 9 11)))
