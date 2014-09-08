@@ -30,7 +30,7 @@
 ;;表やグラフのデータを、日毎、週ごと、月ごと、n日毎に出力できるように
 ;;; Code:
 
-
+(require 'cl)
 
 (defvar odoco:time-list ())
 (defvar odoco:default-graph-file-name "odoco-graph.png")
@@ -108,7 +108,26 @@
 
 
 (defun odoco:sort-with-time (time-list)
-  (sort time-list '>))
+  (sort time-list 'odoco:compare))
+
+(defun odoco:compare (time1 time2)
+  "time1 : (a1 a2) 
+time2 : (b1 b2).
+if a1 > b1 => t
+   a1 < b1 => nil
+   a1 = b1 and a2 > b2 t
+   a1 = b1 and a2 < b2 nil
+   a1 = b1 and a2 = b2 t"
+  (let ((a1 (car time1))
+        (a2 (cadr time1))
+        (b1 (car time2))
+        (b2 (cadr time2)))
+    (cond ((> a1 b1) t)
+          ((< a1 b1) nil)
+          ((> a2 b2) t)
+          ((< a2 b2) nil)
+          (t t))))
+
 
 (defun odoco:make-done-data (time-list)
   (let ((result ()))
