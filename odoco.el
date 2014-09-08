@@ -111,7 +111,8 @@
   (sort time-list 'odoco:compare))
 
 (defun odoco:compare (time1 time2)
-  "日時が後のほうが前に来る破壊的ソート。"
+  "compare time1 time2.
+time1 and time2 is encoded one for example '(21518 5001)."
   (let ((etime1 (apply 'encode-time time1))
         (etime2 (apply 'encode-time time2)))
     (let ((a1 (car etime1))
