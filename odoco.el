@@ -22,6 +22,12 @@
 ;;org-done-count => odoco.el
 
 ;; 
+;;TODO
+;;やるべきことはたくさんあります。
+;;*グラフの色の設定を可能にする。
+;;＊決まった場所にグラフや表を挿入、更新できるように。
+;;グラフや表を別ウインドウに表示できるように。
+;;表やグラフのデータを、日毎、週ごと、月ごと、n日毎に出力できるように
 ;;; Code:
 
 
@@ -58,17 +64,17 @@
   "時間リストに時間を追加して返す。"
   (cons time time-list))
 
-(defun odoco:search-done (time-list)
+(defun odoco:search-done ()
   "バッファの先頭から、DONE~CLOSEDを探して、時間リストに追加する"
-  (setq time-list ())
-  (save-excursion
-    (goto-char (point-min))
-    (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
-                              nil
-                              t)
-      (let ((time (string-to-number (odoco:format-time (match-string 4)))))
-        (setq time-list (odoco:add-time-list time-list time)))))
-  time-list)
+  (let (time-list)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
+                                nil
+                                t)
+        (let ((time (string-to-number (odoco:format-time (match-string 4)))))
+          (setq time-list (odoco:add-time-list time-list time)))))
+    time-list))
 
 (defun odoco:format-time (time)
   (let ((len (length time)))
@@ -113,15 +119,14 @@
   (odoco:make-table odoco:done-time-list))
 
 (defun odoco:make-table (time-list)
-  (odoco:search-done time-list)
-  (setq time-list (odoco:sort-with-time time-list))
+  (setq time-list (odoco:sort-with-time (odoco:search-done)))
   (let ((done-data (odoco:make-done-data time-list)))
     (odoco:insert-table done-data)))
 
-(defun odoco:generate-graph ()
+(defun odoco:graph ()
   "graphの生成"
   (interactive)
-  (odoco:search-done odoco:done-time-list)
+  (setq odoco:done-time-list (odoco:search-done odoco:done-time-list))
   (setq odoco:done-time-list (odoco:sort-with-time odoco:done-time-list))
   (let ((done-data (odoco:make-done-data odoco:done-time-list)))
     (odoco:make-graph done-data)))
