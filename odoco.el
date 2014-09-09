@@ -86,8 +86,8 @@
   (or period (setq period 'week))
   (let (time-list)
     (setq time-list (odoco:make-time-list))
-    (let ((done-data (odoco:make-count-data time-list interval)))
-      (odoco:insert-table done-data interval period))))
+    (let ((count-data-list (odoco:make-count-data time-list interval)))
+      (odoco:insert-table count-data-list interval period))))
 
 (defun odoco:make-graph (tc-list)
   "時間と度数のコンスセルのリストから、グラフを生成する。"
@@ -142,12 +142,12 @@
 
 ;; functions from count-data to table
 
-(defun odoco:insert-table (done-data interval period)
+(defun odoco:insert-table (data-count-list interval period)
   ""
   ;; periodはシンボル。
   ;; ここから、period分だけ抽出する。
-  (let ((period-data (odoco:filter-with-period done-data interval period)))
-    (dolist (data done-data)
+  (let ((period-data (odoco:filter-with-period data-count-list interval period)))
+    (dolist (data data-count-list)
       (let ((day (car data))
             (count (cdr data)))
         (insert (concat day " " (number-to-string count) "\n"))))))
@@ -171,22 +171,19 @@
             (push (cons time 1)
                   result-cdl)))))))
 
-(defun odoco:filter-with-period (done-data interval period)
-  "filter done-data with period.
-When period is 'week, return done-data of only this week."
+(defun odoco:filter-with-period (data-count-list interval period)
+  "filter data-count-list with period.
+When period is 'week, return data-count-list of only this week."
   ;; periodは'weekとか。
-  (let ((today (decode-time (odoco:format-with-interval (decode-time (current-time)) interval))))
-    (cond ((eq period 'week)
-           (let ((days-before (odoco:sub-day today 6)))
-             
-             )))
-    (days-before (cond ((eq period 'week) (- today (- 7 1)))
-                       (t (- today (- 7 1)))))
-    result-data
-    (dolist (data done-data result-data)
-      (if (and (odoco:compare-time today data)
-               (odoco:compare-time data days-before))
-          (cons data result-data)))))
+  (cond ((and (eq interval 'day) (eq period 'week))
+         (let* ((today (time-to-days (current-time)))
+                (days-before (- today 6)))
+           (loop for x in data-count-list
+                 if (let ((td (time-to-days x)))
+                      (and (<= td today) (>= td days-before)))
+                 collect x into result-dcl
+                 finally return result-dcl)))
+        (t t)))
 
 ;; functions from buffer to time-list
 
