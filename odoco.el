@@ -225,6 +225,7 @@ time1 and time2 is encoded one for example '(21518 5001)."
   (insert-image (create-image gpic-name))
   (insert "\n"))
 
+
 (provide 'odoco:count)
 ;;; odoco.el ends here
 
