@@ -33,6 +33,9 @@
 ;;; Code:
 
 (require 'cl)
+(require 'time-date)
+
+;; variables
 
 (defvar odoco:time-list nil)
 (defvar odoco:default-graph-file-name "odoco-graph.png")
@@ -58,13 +61,81 @@
 (defcustom odoco:gnuplot-command "wgnuplot"
   "this is a document")
 
+;; interactive functions
+(defun odoco:table ()
+  (interactive)
+  (odoco:make-table))
 
-(defun odoco:add-time-list (time-list time)
-  "Add time to time-list."
-  (cons time time-list))
+(defun odoco:graph (&optional interval)
+  "graphã®ç”Ÿæˆ"
+  (interactive)
+  (or interval (setq interval 'week))
+  (setq odoco:time-list (odoco:make-time-list odoco:time-list))
+  (let ((done-data (odoco:make-count-data odoco:time-list)))
+    (odoco:make-graph done-data)))
+
+;; function to manage interactiove option
+
+(defun odoco:make-table (&optional interval period)
+  ;; make-table intervalåˆ»ã¿ã®è¡¨ã‚’ã€periodæœŸé–“åˆ†ä½œæˆã—ã¦æŒ¿å…¥ã™ã‚‹ã€‚
+  (or interval (setq interval 'day))
+  (or period (setq period 'week))
+  (let* ((time-list (odoco:make-time-list))
+         (count-data-list (odoco:make-count-data time-list interval)))
+    (odoco:insert-table count-data-list interval period)))
+
+;; functions from count-data to table
+
+(defun odoco:insert-table (data-count-list interval period)
+  ""
+  ;; periodã¯ã‚·ãƒ³ãƒœãƒ«ã€‚
+  ;; ã“ã“ã‹ã‚‰ã€periodåˆ†ã ã‘æŠ½å‡ºã™ã‚‹ã€‚
+  (let ((period-dcl (odoco:filter-with-period data-count-list
+                                               interval
+                                               period)))
+    (dolist (data period-dcl)
+      (let ((day (odoco:format-time-with-interval (car data) interval))
+            (count (cdr data)))
+        (insert (concat day " " (number-to-string count) "\n"))))))
+
+;; functions from time-list to count-data
+
+(defun odoco:make-count-data (time-list interval)
+  ;; time-listã‹ã‚‰ã€count-data-listã‚’ä½œæˆã™ã‚‹ã€‚æ™‚é–“ã¨ãã®åº¦æ•°ã‚’å¯¾ã«ã—ãŸã‚‚ã®ã€‚
+  ;; time-listã®æ§‹é€ ã«ä¾å­˜ã—ãªã„ã‚ˆã†ã«æ³¨æ„ã€‚
+  ;; ãŸã ã—ã€ãã®æ™‚é–“ã¯ã€intervalã«é©ã—ãŸå½¢ã§æ¯”è¼ƒã™ã‚‹ã€‚æ§‹é€ ã¯å¤‰ãˆãªã„ã€‚
+  (let (result-cdl)
+    (dolist (time time-list result-cdl)
+      (if (null result-cdl)
+          (push (cons time 1) result-cdl)
+        (let ((before (car result-cdl)))
+          (if (odoco:equal-time time (car before) interval)
+              (push (cons (car before) (1+ (cdr before)))
+                    (cdr result-cdl))
+            (push (cons time 1)
+                  result-cdl)))))))
+
+(defun odoco:filter-with-period (data-count-list interval period)
+  "filter data-count-list with period.
+When period is 'week, return data-count-list of only this week."
+  ;; periodã¯'weekã¨ã‹ã€‚
+  (cond ((and (eq interval 'day) (eq period 'week))
+         (let* ((today (time-to-days (current-time)))
+                (days-before (- today 6)))
+           (loop for x in data-count-list
+                 if (let ((td (time-to-days (car x))))
+                      (and (<= td today) (>= td days-before)))
+                 collect x into result-dcl
+                 finally return result-dcl)))
+        (t t)))
+
+;; functions from buffer to time-list
 
 (defun odoco:make-time-list ()
   "Search \"DONE ... CLOSED ...\", and add global time-list"
+  ;; bufferã‹ã‚‰æ­£è¦è¡¨ç¾ã§æ¤œç´¢ã€‚time-listã‚’ä½œæˆã™ã‚‹ã€‚listã®å„è¦ç´ ã‚‚ãƒªã‚¹ãƒˆã€‚
+  ;; å„è¦ç´ ã¯ã€(0 41 11 7 9 2014 0 nil 32400)ã¦ãªæ„Ÿã˜ã®ã€decode-timeã®è¿”ã‚Šå€¤ã¨åŒã˜å½¢å¼ã€‚
+  ;; ã ã‹ã‚‰ã€è¿”ã‚Šå€¤ã¯ã€((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))ã¿ãŸã„ãªæ„Ÿã˜ã€‚
   (let (time-list)
     (save-excursion
       (goto-char (point-min))
@@ -72,111 +143,46 @@
                                 nil
                                 t)
         (let ((time (odoco:encode-time (match-string 4))))
-          (setq time-list (odoco:add-time-list time-list time)))))
-    (odoco:sort-with-time time-list)))
+          (push time time-list))))
+    (sort time-list 'time-less-p)))
 
-(defun odoco:encode-time (dtime)
+(defun odoco:encode-time (date)
   "Encode the time from buffer to a list format.
-[2014/09/20 “ú 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
-  (let ((year (string-to-number (substring dtime 1 5)))
-        (month (string-to-number (substring dtime 6 8)))
-        (day (string-to-number (substring dtime 9 11)))
-        (hour (string-to-number (substring dtime 14 16)))
-        (min (string-to-number (substring dtime 17 19)))
+ [2014/09/20 æ—¥ 11:24] -> '(21532 58688)"
+  (let ((year (string-to-number (substring date 1 5)))
+        (month (string-to-number (substring date 6 8)))
+        (day (string-to-number (substring date 9 11)))
+        (hour (string-to-number (substring date 14 16)))
+        (min (string-to-number (substring date 17 19)))
         (sec 0)
-        (dow (let ((d (substring dtime 12 13)))
-               (cond ((equal d "“ú") 0)
-                     ((equal d "Œ") 1)
-                     ((equal d "‰Î") 2)
-                     ((equal d "…") 3)
-                     ((equal d "–Ø") 4)
-                     ((equal d "‹à") 5)
-                     ((equal d "“y") 6)))))
-    (list sec min hour day month year dow nil 32400)))
+        (dow (let ((d (substring date 12 13)))
+               (cond ((equal d "æ—¥") 0)
+                     ((equal d "æœˆ") 1)
+                     ((equal d "ç«") 2)
+                     ((equal d "æ°´") 3)
+                     ((equal d "æœ¨") 4)
+                     ((equal d "é‡‘") 5)
+                     ((equal d "åœŸ") 6)))))
+    (apply 'encode-time (list sec min hour day month year dow nil 32400))))
 
-(defun odoco:decode-time (etime)
-  "'(0 24 11 20 9 2014 0 nil 32400) -> [2014/09/20 “ú 11:24]"
-  (let ((dow (cond ((equal (nth 6 etime) 0) "“ú")
-                    ((equal (nth 6 etime) 1) "Œ")
-                    ((equal (nth 6 etime) 2) "‰Î")
-                    ((equal (nth 6 etime) 3) "…")
-                    ((equal (nth 6 etime) 4) "–Ø")
-                    ((equal (nth 6 etime) 5) "‹à")
-                    ((equal (nth 6 etime) 6) "“y")))
-        (str (format-time-string "[%Y/%m/%d buf %R]"
-                                 (apply 'encode-time etime))))
-    (replace-regexp-in-string "buf" dow str)))
+(defun odoco:format-time-with-interval (time interval)
+  (cond ((eq interval 'day)
+         (format-time-string "%m/%d" time))))
 
-(defun odoco:sort-with-time (time-list)
-  (sort time-list 'odoco:compare))
+(defun odoco:equal-time (time1 time2 interval)
+  "confirm time1 and time2 equall in terms of interval.
+For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
+2014/08/31 22:11 is equal to 2014/08/01 11:11 in terms of 'month."
+  (cond ((eq interval 'day)
+         (let ((td1 (time-to-days time1))
+               (td2 (time-to-days time2)))
+           (eq time1 time2)))
+        (t (error "this is an error in odoco:equal-time"))))
 
-(defun odoco:compare (time1 time2)
-  "compare time1 time2.
-time1 and time2 is encoded one for example '(21518 5001)."
-  (let ((etime1 (apply 'encode-time time1))
-        (etime2 (apply 'encode-time time2)))
-    (let ((a1 (car etime1))
-          (a2 (cadr etime1))
-          (b1 (car etime2))
-          (b2 (cadr etime2)))
-      (cond ((> a1 b1) t)
-            ((< a1 b1) nil)
-            ((> a2 b2) t)
-            ((< a2 b2) nil)
-            (t t)))))
 
-(defun odoco:make-count-data (time-list interval)
-  (let (result)
-    (dolist (time time-list result)
-      (let ((curr (odoco:filter time interval)))
-        (if (null result)
-            (setq result (list (cons curr 1)))
-          (let ((before (caar result)))
-            (if (equal curr before)
-                (setq result (odoco:add-count-data (cons before
-                                                         (1+ (cdar result)))
-                                                   (cdr result)))
-              (setq result (odoco:add-count-data (cons curr 1)
-                                                 result)))))))))
-
-(defun odoco:filter (time interval)
-  "time‚©‚çAƒVƒ“ƒ{ƒ‹intervel‚É‡‚í‚¹‚Ä•¶š—ñ‚ğì¬"
-  (let ((time-pair (apply 'encode-time time)))
-    (cond ((equal interval 'day) (format-time-string "%m/%d" time-pair))
-          (t (format-time-string "%m/%d" time-pair)))))
-
-(defun odoco:add-count-data (item data)
-  (cons item data))
-
-(defun odoco:insert-table (done-data period)
-  (let ((period-data (odoco:make-period-data period)))
-    (dolist (data done-data)
-      (let ((day (car data))
-            (count (cdr data)))
-        (insert (concat day " " (number-to-string count) "\n"))))))
-
-(defun odoco:table ()
-  (interactive)
-  (odoco:make-table))
-
-(defun odoco:make-table (&optional interval period)
-  (or interval (setq interval 'day))
-  (or period (setq period 'week))
-  (let (time-list)
-    (setq time-list (odoco:make-time-list))
-    (let ((done-data (odoco:make-count-data time-list interval)))
-      (odoco:insert-table done-data period))))
-
-(defun odoco:graph (&optional interval)
-  "graph‚Ì¶¬"
-  (interactive)
-  (or interval (setq interval 'week))
-  (setq odoco:time-list (odoco:make-time-list odoco:time-list))
-  (let ((done-data (odoco:make-count-data odoco:time-list)))
-    (odoco:make-graph done-data)))
-
+;;
 (defun odoco:make-graph (tc-list)
-  "ŠÔ‚Æ“x”‚ÌƒRƒ“ƒXƒZƒ‹‚ÌƒŠƒXƒg‚©‚çAƒOƒ‰ƒt‚ğ¶¬‚·‚éB"
+  "æ™‚é–“ã¨åº¦æ•°ã®ã‚³ãƒ³ã‚¹ã‚»ãƒ«ã®ãƒªã‚¹ãƒˆã‹ã‚‰ã€ã‚°ãƒ©ãƒ•ã‚’ç”Ÿæˆã™ã‚‹ã€‚"
   (let ((gdata-file odoco:graph-data-file-name)
         (gpic-file odoco:graph-file-name)
         (plt-file odoco:plt-file-name))
@@ -185,7 +191,7 @@ time1 and time2 is encoded one for example '(21518 5001)."
     (odoco:insert-graph gpic-file)))
 
 (defun odoco:make-graph-data-file (tc-list gdata-file)
-  "tc-list‚ğgdata-file‚É‘‚«‚Ş"
+  "tc-listã‚’gdata-fileã«æ›¸ãè¾¼ã‚€"
   (let ((str ""))
     (dolist (point tc-list)
       (let ((x (car point))
@@ -198,15 +204,15 @@ time1 and time2 is encoded one for example '(21518 5001)."
     (write-region str nil gdata-file)))
 
 (defun odoco:make-plt-file (gdata-file gpic-file plt-file)
-  "pltƒtƒ@ƒCƒ‹‚Ìì¬"
+  "pltãƒ•ã‚¡ã‚¤ãƒ«ã®ä½œæˆ"
   (let ((plt-conf (odoco:make-plt-conf gdata-file
                                           gpic-file 
                                           odoco:plt-const
-                                          odoco:plt-option))) ;•¶š—ñ‚Ìì¬
+                                          odoco:plt-option))) ;æ–‡å­—åˆ—ã®ä½œæˆ
     (write-region plt-conf nil plt-file)))
 
 (defun odoco:make-plt-conf (gdata-file gpic-file plt-const plt-option)
-  "pltƒtƒ@ƒCƒ‹‚É‘‚«‚Ş•¶š—ñ‚Ìì¬"
+  "pltãƒ•ã‚¡ã‚¤ãƒ«ã«æ›¸ãè¾¼ã‚€æ–‡å­—åˆ—ã®ä½œæˆ"
   (let ((extention (cadr (split-string gpic-file "\\."))))
     (let ((first (concat "set terminal " extention))
           (second (concat "set output \"" gpic-file "\""))
@@ -215,12 +221,13 @@ time1 and time2 is encoded one for example '(21518 5001)."
       (concat first "\n" second "\n" third "\n" fourth))))
 
 (defun odoco:submit-gnuplot (gdata-file gpic-file plt-file)
-  "ˆø”‚©‚çpltƒtƒ@ƒCƒ‹‚ğ¶¬‚µAgnuplot‚ÉÀs‚³‚¹‚é"
+  "å¼•æ•°ã‹ã‚‰pltãƒ•ã‚¡ã‚¤ãƒ«ã‚’ç”Ÿæˆã—ã€gnuplotã«å®Ÿè¡Œã•ã›ã‚‹"
   (odoco:make-plt-file gdata-file gpic-file plt-file)
   (start-process "emacs-wgnuplot" nil odoco:gnuplot-command plt-file))
 
 (defun odoco:insert-graph (gpic-name)
-  "gnuplot‚Å¶¬‚µ‚½‰æ‘œ‚ğ‘}“ü"
+
+  "gnuplotã§ç”Ÿæˆã—ãŸç”»åƒã‚’æŒ¿å…¥"
   (insert "\n")
   (insert-image (create-image gpic-name))
   (insert "\n"))
