@@ -34,6 +34,9 @@
 
 (require 'cl)
 
+
+;; variables
+
 (defvar odoco:time-list nil)
 (defvar odoco:default-graph-file-name "odoco-graph.png")
 (defvar odoco:default-plt-conf-str ""
@@ -58,6 +61,7 @@
 (defcustom odoco:gnuplot-command "wgnuplot"
   "this is a document")
 
+;; interactive functions
 
 (defun odoco:add-time-list (time-list time)
   "Add time to time-list."
@@ -139,7 +143,7 @@ Even if length are different, this function do not error."
 
 (defun odoco:make-count-data (time-list interval)
   ;; ((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいなtime-listから、time-count-dataを作成する。時間とその度数を対にしたもの。
-  ;; ただし、その時間は、intervalに適したものに変換する。
+  ;; ただし、その時間は、intervalに適した形で比較する。periodの計算のために、構造は変えず、不必要なところを0で統一する。
   (let (result)
     (dolist (time time-list result)
       (let ((curr (odoco:format-with-interval time interval)))
@@ -167,10 +171,8 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
   ;; これを、intervalに適した形に変換する。
   ;; intervalが何にも当てはまらない場合は、error
   (cond ((equal interval 'day)
-         (let ((year (nth 5 time))
-               (month (nth 4 time))
-               (day (nth 3 time)))
-           (list year month day)))
+         (append '(0 0 0)
+                 (cdddr time)))
         (t (error "error in odoco:format-with-interval 1"))))
 
 (defun odoco:filter-time-list (time interval)
@@ -179,25 +181,40 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
     (cond ((equal interval 'day) (format-time-string "%m/%d" time-pair))
           (t (format-time-string "%m/%d" time-pair)))))
 
-(defun odoco:insert-table (done-data period)
-  (let ((period-data (odoco:make-period-data period)))
+(defun odoco:insert-table (done-data interval period)
+  ""
+  ;; done-data は　'(((0 0 0 7 9 2014 0 nil 32400) . 2) ((0 0 0 7 9 2014 0 nil 32400) . 3))みたいな感じのはず。
+  ;; periodはシンボル。
+  ;; ここから、period分だけ抽出する。
+  (let ((period-data (odoco:format-with-period interval period)))
     (dolist (data done-data)
       (let ((day (car data))
             (count (cdr data)))
         (insert (concat day " " (number-to-string count) "\n"))))))
 
-(defun odoco:make-period-data (done-data period)
+(defun odoco:format-with-period (done-data interval period)
   "filter done-data with period.
 When period is 'week, return done-data of only this week."
 ;; assume done data is list of data. ex. (year month day)
-  (let* ((today (current-time))
-         (days-before (cond ((eq period 'week) (- today (- 7 1)))
-                            (t (- today (- 7 1)))))
-         result-data)
+  ;; done-dataは　'(((0 0 0 7 9 2014 0 nil 32400) . 2) ((0 0 0 7 9 2014 0 nil 32400) . 3))みたいな感じ。
+  ;; periodは'weekとか。
+  (let ((today (decode-time (odoco:format-with-interval (decode-time (current-time)) interval))))
+    (cond ((eq period 'week)
+           (let ((days-before (odoco:sub-day today 6)))
+             
+             )))
+    (days-before (cond ((eq period 'week) (- today (- 7 1)))
+                       (t (- today (- 7 1)))))
+    result-data
     (dolist (data done-data result-data)
       (if (and (odoco:compare-time today data)
                (odoco:compare-time data days-before))
           (cons data result-data)))))
+
+(defun odoco:sub-day (day num)
+  (let ((nt (days-to-time num))
+        (dt (apply 'encode-time day)))                ;ntは(hi . lo)
+    (decode-time (time-subtract dt nt))))
 
 (defun odoco:table ()
   (interactive)
@@ -210,9 +227,7 @@ When period is 'week, return done-data of only this week."
   (let (time-list)
     (setq time-list (odoco:make-time-list))
     (let ((done-data (odoco:make-count-data time-list interval)))
-      (setq aa done-data)
-      ;; (odoco:insert-table done-data period)
-      )))
+      (odoco:insert-table done-data interval period))))
 
 (defun odoco:graph (&optional interval)
   "graphの生成"
