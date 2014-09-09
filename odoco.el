@@ -65,6 +65,7 @@
 (defun odoco:table ()
   (interactive)
   (odoco:make-table))
+
 (defun odoco:graph (&optional interval)
   "graphの生成"
   (interactive)
@@ -73,22 +74,113 @@
   (let ((done-data (odoco:make-count-data odoco:time-list)))
     (odoco:make-graph done-data)))
 
-;;
-
-(defun odoco:sub-day (day num)
-  (let ((nt (days-to-time num))
-        (dt (apply 'encode-time day)))                ;ntは(hi . lo)
-    (decode-time (time-subtract dt nt))))
+;; function to manage interactiove option
 
 (defun odoco:make-table (&optional interval period)
   ;; make-table interval刻みの表を、period期間分作成して挿入する。
   (or interval (setq interval 'day))
   (or period (setq period 'week))
-  (let (time-list)
-    (setq time-list (odoco:make-time-list))
-    (let ((count-data-list (odoco:make-count-data time-list interval)))
-      (odoco:insert-table count-data-list interval period))))
+  (let* ((time-list (odoco:make-time-list))
+         (count-data-list (odoco:make-count-data time-list interval)))
+    (odoco:insert-table count-data-list interval period)))
 
+;; functions from count-data to table
+
+(defun odoco:insert-table (data-count-list interval period)
+  ""
+  ;; periodはシンボル。
+  ;; ここから、period分だけ抽出する。
+  (let ((period-dcl (odoco:filter-with-period data-count-list
+                                               interval
+                                               period)))
+    (dolist (data period-dcl)
+      (let ((day (odoco:format-time-with-interval (car data) interval))
+            (count (cdr data)))
+        (insert (concat day " " (number-to-string count) "\n"))))))
+
+;; functions from time-list to count-data
+
+(defun odoco:make-count-data (time-list interval)
+  ;; time-listから、count-data-listを作成する。時間とその度数を対にしたもの。
+  ;; time-listの構造に依存しないように注意。
+  ;; ただし、その時間は、intervalに適した形で比較する。構造は変えない。
+  (let (result-cdl)
+    (dolist (time time-list result-cdl)
+      (if (null result-cdl)
+          (push (cons time 1) result-cdl)
+        (let ((before (pop result-cdl)))
+          (if (odoco:equal-time time (car before) interval)
+              (push (cons (car before) (1+ (cdr before)))
+                    result-cdl)
+            (push (cons time 1)
+                  result-cdl)))))))
+
+(defun odoco:filter-with-period (data-count-list interval period)
+  "filter data-count-list with period.
+When period is 'week, return data-count-list of only this week."
+  ;; periodは'weekとか。
+  (cond ((and (eq interval 'day) (eq period 'week))
+         (let* ((today (time-to-days (current-time)))
+                (days-before (- today 6)))
+           (loop for x in data-count-list
+                 if (let ((td (time-to-days (car x))))
+                      (and (<= td today) (>= td days-before)))
+                 collect x into result-dcl
+                 finally return result-dcl)))
+        (t t)))
+
+;; functions from buffer to time-list
+
+(defun odoco:make-time-list ()
+  "Search \"DONE ... CLOSED ...\", and add global time-list"
+  ;; bufferから正規表現で検索。time-listを作成する。listの各要素もリスト。
+  ;; 各要素は、(0 41 11 7 9 2014 0 nil 32400)てな感じの、decode-timeの返り値と同じ形式。
+  ;; だから、返り値は、((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいな感じ。
+  (let (time-list)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
+                                nil
+                                t)
+        (let ((time (odoco:encode-time (match-string 4))))
+          (push time time-list))))
+    (sort time-list 'time-less-p)))
+
+(defun odoco:encode-time (date)
+  "Encode the time from buffer to a list format.
+ [2014/09/20 日 11:24] -> '(21532 58688)"
+  (let ((year (string-to-number (substring date 1 5)))
+        (month (string-to-number (substring date 6 8)))
+        (day (string-to-number (substring date 9 11)))
+        (hour (string-to-number (substring date 14 16)))
+        (min (string-to-number (substring date 17 19)))
+        (sec 0)
+        (dow (let ((d (substring date 12 13)))
+               (cond ((equal d "日") 0)
+                     ((equal d "月") 1)
+                     ((equal d "火") 2)
+                     ((equal d "水") 3)
+                     ((equal d "木") 4)
+                     ((equal d "金") 5)
+                     ((equal d "土") 6)))))
+    (apply 'encode-time (list sec min hour day month year dow nil 32400))))
+
+(defun odoco:format-time-with-interval (time interval)
+  (cond ((eq interval 'day)
+         (format-time-string "%m/%d" time))))
+
+(defun odoco:equal-time (time1 time2 interval)
+  "confirm time1 and time2 equall in terms of interval.
+For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
+2014/08/31 22:11 is equal to 2014/08/01 11:11 in terms of 'month."
+  (cond ((eq interval 'day)
+         (let ((td1 (time-to-days time1))
+               (td2 (time-to-days time2)))
+           (eq time1 time2)))
+        (t (error "this is an error in odoco:equal-time"))))
+
+
+;;
 (defun odoco:make-graph (tc-list)
   "時間と度数のコンスセルのリストから、グラフを生成する。"
   (let ((gdata-file odoco:graph-data-file-name)
@@ -139,97 +231,6 @@
   (insert "\n")
   (insert-image (create-image gpic-name))
   (insert "\n"))
-
-;; functions from count-data to table
-
-(defun odoco:insert-table (data-count-list interval period)
-  ""
-  ;; periodはシンボル。
-  ;; ここから、period分だけ抽出する。
-  (let ((period-data (odoco:filter-with-period data-count-list interval period)))
-    (dolist (data data-count-list)
-      (let ((day (car data))
-            (count (cdr data)))
-        (insert (concat day " " (number-to-string count) "\n"))))))
-
-
-
-;; functions from time-list to count-data
-
-(defun odoco:make-count-data (time-list interval)
-  ;; time-listから、count-data-listを作成する。時間とその度数を対にしたもの。
-  ;; time-listの構造に依存しないように注意。
-  ;; ただし、その時間は、intervalに適した形で比較する。構造は変えない。
-  (let (result-cdl)
-    (dolist (time time-list result-cdl)
-      (if (null result-cdl)
-          (push (cons time 1) result-cdl)
-        (let ((before (pop result-cdl)))
-          (if (odoco:equal-time time (car before) interval)
-              (push (cons (car before) (1+ (cdr before)))
-                    result-cdl)
-            (push (cons time 1)
-                  result-cdl)))))))
-
-(defun odoco:filter-with-period (data-count-list interval period)
-  "filter data-count-list with period.
-When period is 'week, return data-count-list of only this week."
-  ;; periodは'weekとか。
-  (cond ((and (eq interval 'day) (eq period 'week))
-         (let* ((today (time-to-days (current-time)))
-                (days-before (- today 6)))
-           (loop for x in data-count-list
-                 if (let ((td (time-to-days x)))
-                      (and (<= td today) (>= td days-before)))
-                 collect x into result-dcl
-                 finally return result-dcl)))
-        (t t)))
-
-;; functions from buffer to time-list
-
-(defun odoco:make-time-list ()
-  "Search \"DONE ... CLOSED ...\", and add global time-list"
-  ;; bufferから正規表現で検索。time-listを作成する。listの各要素もリスト。
-  ;; 各要素は、(0 41 11 7 9 2014 0 nil 32400)てな感じの、decode-timeの返り値と同じ形式。
-  ;; だから、返り値は、((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいな感じ。
-  (let (time-list)
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
-                                nil
-                                t)
-        (let ((time (odoco:encode-time (match-string 4))))
-          (push time time-list))))
-    (sort time-list 'time-less-p)))
-
-(defun odoco:encode-time (date)
-  "Encode the time from buffer to a list format.
- [2014/09/20 日 11:24] -> '(21532 58688)"
-  (let ((year (string-to-number (substring date 1 5)))
-        (month (string-to-number (substring date 6 8)))
-        (day (string-to-number (substring date 9 11)))
-        (hour (string-to-number (substring date 14 16)))
-        (min (string-to-number (substring date 17 19)))
-        (sec 0)
-        (dow (let ((d (substring date 12 13)))
-               (cond ((equal d "日") 0)
-                     ((equal d "月") 1)
-                     ((equal d "火") 2)
-                     ((equal d "水") 3)
-                     ((equal d "木") 4)
-                     ((equal d "金") 5)
-                     ((equal d "土") 6)))))
-    (apply 'encode-time (list sec min hour day month year dow nil 32400))))
-
-(defun odoco:equal-time (time1 time2 interval)
-  "confirm time1 and time2 equall in terms of interval.
-For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
-2014/08/31 22:11 is equal to 2014/08/01 11:11 in terms of 'month."
-  (cond ((eq interval 'day)
-         (let ((td1 (time-to-days time1))
-               (td2 (time-to-days time2)))
-           (eq time1 time2)))
-        (t (error "this is an error in odoco:equal-time"))))
 
 (provide 'odoco:count)
 ;;; odoco.el ends here
