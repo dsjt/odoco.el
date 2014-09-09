@@ -108,10 +108,10 @@
     (dolist (time time-list result-cdl)
       (if (null result-cdl)
           (push (cons time 1) result-cdl)
-        (let ((before (pop result-cdl)))
+        (let ((before (car result-cdl)))
           (if (odoco:equal-time time (car before) interval)
               (push (cons (car before) (1+ (cdr before)))
-                    result-cdl)
+                    (cdr result-cdl))
             (push (cons time 1)
                   result-cdl)))))))
 
