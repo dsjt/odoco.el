@@ -112,19 +112,25 @@
 
 (defun odoco:compare-time (time1 time2)
   "compare time1 time2.
-time1 and time2 is encoded (by encode-time) and  one for example '(21518 5001).
-"
+time1 and time2 is encoded (by encode-time function) and  one for example '(21518 5001)."
   (let ((etime1 (apply 'encode-time time1))
         (etime2 (apply 'encode-time time2)))
-    (let ((a1 (car etime1))
-          (a2 (cadr etime1))
-          (b1 (car etime2))
-          (b2 (cadr etime2)))
-      (cond ((> a1 b1) t)
-            ((< a1 b1) nil)
-            ((> a2 b2) t)
-            ((< a2 b2) nil)
-            (t t)))))
+(odoco:compare-any-list etime1 etime2)))
+
+(defun odoco:compare-any-list (list1 list2)
+  "Compare list1 and list2.
+Compare car of list1 and car of list2. 
+When former is bigger than latter, return t. When former is less than latter return nil. Otherwise start to compare cadr of list1 and cadr of list2 recursively. If all factor of list1 and list2 is equall, return t.
+Even if length are different, this function do not error."
+  (cond ((and (null list1) (null list2)) t)
+        ((or (null list1) (null list2)) nil)
+        (t       
+         (let ((item1 (car list1))
+               (item2 (car list2)))
+           (cond ((> item1 item2) t)
+                 ((< item1 item2) nil)
+                 (t (odoco:compare-any-list (cdr list1) (cdr list2))))))))
+
 
 (defun odoco:make-count-data (time-list interval)
   (let (result)
