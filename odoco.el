@@ -108,11 +108,11 @@
     (replace-regexp-in-string "buf" dow str)))
 
 (defun odoco:sort-with-time (time-list)
-  (sort time-list 'odoco:compare))
+  (sort time-list 'odoco:compare-time))
 
-(defun odoco:compare (time1 time2)
+(defun odoco:compare-time (time1 time2)
   "compare time1 time2.
-time1 and time2 is encoded one for example '(21518 5001)."
+time1 and time2 is encoded (by encode-time) and  one for example '(21518 5001)."
   (let ((etime1 (apply 'encode-time time1))
         (etime2 (apply 'encode-time time2)))
     (let ((a1 (car etime1))
@@ -128,7 +128,7 @@ time1 and time2 is encoded one for example '(21518 5001)."
 (defun odoco:make-count-data (time-list interval)
   (let (result)
     (dolist (time time-list result)
-      (let ((curr (odoco:filter time interval)))
+      (let ((curr time))
         (if (null result)
             (setq result (list (cons curr 1)))
           (let ((before (caar result)))
@@ -139,7 +139,13 @@ time1 and time2 is encoded one for example '(21518 5001)."
               (setq result (odoco:add-count-data (cons curr 1)
                                                  result)))))))))
 
-(defun odoco:filter (time interval)
+(defun (odoco:equal-time time1 time2 interval)
+  "confirm time1 and time2 equall in terms of interval.
+For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
+2014/08/31 22:11 is equal to 2014/08/01 11:11 in terms of 'month."
+  ())
+
+(defun odoco:filter-time-list (time interval)
   "timeÇ©ÇÁÅAÉVÉìÉ{ÉãintervelÇ…çáÇÌÇπÇƒï∂éöóÒÇçÏê¨"
   (let ((time-pair (apply 'encode-time time)))
     (cond ((equal interval 'day) (format-time-string "%m/%d" time-pair))
@@ -155,6 +161,12 @@ time1 and time2 is encoded one for example '(21518 5001)."
             (count (cdr data)))
         (insert (concat day " " (number-to-string count) "\n"))))))
 
+(defun odoco:make-period-data (done-data period)
+  "filter done-data with period.
+When period is 'week, return done-data of only this week."
+  (let ((today (current-time))
+        (days-before)))
+  )
 (defun odoco:table ()
   (interactive)
   (odoco:make-table))
@@ -165,7 +177,9 @@ time1 and time2 is encoded one for example '(21518 5001)."
   (let (time-list)
     (setq time-list (odoco:make-time-list))
     (let ((done-data (odoco:make-count-data time-list interval)))
-      (odoco:insert-table done-data period))))
+      (setq aa done-data)
+      ;; (odoco:insert-table done-data period)
+      )))
 
 (defun odoco:graph (&optional interval)
   "graphÇÃê∂ê¨"
