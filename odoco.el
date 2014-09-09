@@ -147,11 +147,11 @@ Even if length are different, this function do not error."
             (setq result (list (cons curr 1)))
           (let ((before (odoco:format-with-interval (caar result) interval)))
             (if (equal curr before)
-                (setq result (odoco:add-count-data (cons before
-                                                         (1+ (cdar result)))
-                                                   (cdr result)))
-              (setq result (odoco:add-count-data (cons curr 1)
-                                                 result)))))))))
+                (setq result (cons (cons before
+                                         (1+ (cdar result)))
+                                   (cdr result)))
+              (setq result (cons (cons curr 1)
+                                 result)))))))))
 
 (defun odoco:equal-time (time1 time2 interval)
   "confirm time1 and time2 equall in terms of interval.
@@ -163,18 +163,21 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
 
 (defun odoco:format-with-interval (time interval)
   ""
-  (cond ((eq interval 'day)
-         ))
-)
+  ;; timeは(0 41 11 7 9 2014 0 nil 32400)な感じのもの。
+  ;; これを、intervalに適した形に変換する。
+  ;; intervalが何にも当てはまらない場合は、error
+  (cond ((equal interval 'day)
+         (let ((year (nth 5 time))
+               (month (nth 4 time))
+               (day (nth 3 time)))
+           (list year month day)))
+        (t (error "error in odoco:format-with-interval 1"))))
 
 (defun odoco:filter-time-list (time interval)
   "timeから、シンボルintervelに合わせて文字列を作成"
   (let ((time-pair (apply 'encode-time time)))
     (cond ((equal interval 'day) (format-time-string "%m/%d" time-pair))
           (t (format-time-string "%m/%d" time-pair)))))
-
-(defun odoco:add-count-data (item data)
-  (cons item data))
 
 (defun odoco:insert-table (done-data period)
   (let ((period-data (odoco:make-period-data period)))
