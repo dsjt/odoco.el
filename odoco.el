@@ -65,6 +65,9 @@
 
 (defun odoco:make-time-list ()
   "Search \"DONE ... CLOSED ...\", and add global time-list"
+  ;; bufferから正規表現で検索。time-listを作成する。listの各要素もリスト。
+  ;; 各要素は、(0 41 11 7 9 2014 0 nil 32400)てな感じの、decode-timeの返り値と同じ形式。
+  ;; だから、返り値は、((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいな感じ。
   (let (time-list)
     (save-excursion
       (goto-char (point-min))
@@ -77,7 +80,9 @@
 
 (defun odoco:encode-time (dtime)
   "Encode the time from buffer to a list format.
-[2014/09/20 �� 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
+ [2014/09/20 日 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
+  ;; バッファから抜き出したorg形式の文字列を、decode-timeの返り値と同じ形に。返り値は、そのまま、(apply 'encode-time ここ)　につっこめる。
+  ;; これ、make-table内でしか使わないだろうから、なくしてもいい。
   (let ((year (string-to-number (substring dtime 1 5)))
         (month (string-to-number (substring dtime 6 8)))
         (day (string-to-number (substring dtime 9 11)))
@@ -85,27 +90,28 @@
         (min (string-to-number (substring dtime 17 19)))
         (sec 0)
         (dow (let ((d (substring dtime 12 13)))
-               (cond ((equal d "��") 0)
-                     ((equal d "��") 1)
-                     ((equal d "��") 2)
-                     ((equal d "��") 3)
-                     ((equal d "��") 4)
-                     ((equal d "��") 5)
-                     ((equal d "�y") 6)))))
+               (cond ((equal d "日") 0)
+                     ((equal d "月") 1)
+                     ((equal d "火") 2)
+                     ((equal d "水") 3)
+                     ((equal d "木") 4)
+                     ((equal d "金") 5)
+                     ((equal d "土") 6)))))
     (list sec min hour day month year dow nil 32400)))
 
-(defun odoco:decode-time (etime)
-  "'(0 24 11 20 9 2014 0 nil 32400) -> [2014/09/20 �� 11:24]"
-  (let ((dow (cond ((equal (nth 6 etime) 0) "��")
-                    ((equal (nth 6 etime) 1) "��")
-                    ((equal (nth 6 etime) 2) "��")
-                    ((equal (nth 6 etime) 3) "��")
-                    ((equal (nth 6 etime) 4) "��")
-                    ((equal (nth 6 etime) 5) "��")
-                    ((equal (nth 6 etime) 6) "�y")))
-        (str (format-time-string "[%Y/%m/%d buf %R]"
-                                 (apply 'encode-time etime))))
-    (replace-regexp-in-string "buf" dow str)))
+;; (defun odoco:decode-time (etime)
+;;   "'(0 24 11 20 9 2014 0 nil 32400) -> [2014/09/20 日 11:24]"
+;;   ;; encode-timeを作ったし、対応するdecodeも作ったほうがいいかなって。でもいらないね。
+;;   (let ((dow (cond ((equal (nth 6 etime) 0) "日")
+;;                     ((equal (nth 6 etime) 1) "月")
+;;                     ((equal (nth 6 etime) 2) "火")
+;;                     ((equal (nth 6 etime) 3) "水")
+;;                     ((equal (nth 6 etime) 4) "木")
+;;                     ((equal (nth 6 etime) 5) "金")
+;;                     ((equal (nth 6 etime) 6) "土")))
+;;         (str (format-time-string "[%Y/%m/%d buf %R]"
+;;                                  (apply 'encode-time etime))))
+;;     (replace-regexp-in-string "buf" dow str)))
 
 (defun odoco:sort-with-time (time-list)
   (sort time-list 'odoco:compare-time))
@@ -115,7 +121,7 @@
 time1 and time2 is encoded (by encode-time function) and  one for example '(21518 5001)."
   (let ((etime1 (apply 'encode-time time1))
         (etime2 (apply 'encode-time time2)))
-(odoco:compare-any-list etime1 etime2)))
+    (odoco:compare-any-list etime1 etime2)))
 
 (defun odoco:compare-any-list (list1 list2)
   "Compare list1 and list2.
@@ -131,14 +137,15 @@ Even if length are different, this function do not error."
                  ((< item1 item2) nil)
                  (t (odoco:compare-any-list (cdr list1) (cdr list2))))))))
 
-
 (defun odoco:make-count-data (time-list interval)
+  ;; ((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいなtime-listから、time-count-dataを作成する。時間とその度数を対にしたもの。
+  ;; ただし、その時間は、intervalに適したものに変換する。
   (let (result)
     (dolist (time time-list result)
-      (let ((curr time))
+      (let ((curr (odoco:format-with-interval time interval)))
         (if (null result)
             (setq result (list (cons curr 1)))
-          (let ((before (caar result)))
+          (let ((before (odoco:format-with-interval (caar result) interval)))
             (if (equal curr before)
                 (setq result (odoco:add-count-data (cons before
                                                          (1+ (cdar result)))
@@ -146,14 +153,22 @@ Even if length are different, this function do not error."
               (setq result (odoco:add-count-data (cons curr 1)
                                                  result)))))))))
 
-(defun (odoco:equal-time time1 time2 interval)
+(defun odoco:equal-time (time1 time2 interval)
   "confirm time1 and time2 equall in terms of interval.
 For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
 2014/08/31 22:11 is equal to 2014/08/01 11:11 in terms of 'month."
-  ())
+  (let ((format-time1 (odoco:format-with-interval time1 interval))
+        (format-time2 (odoco:format-with-interval time1 interval)))
+    (odoco:compare-any-list time1 time2)))
+
+(defun odoco:format-with-interval (time interval)
+  ""
+  (cond ((eq interval 'day)
+         ))
+)
 
 (defun odoco:filter-time-list (time interval)
-  "time����A�V���{��intervel�ɍ��킹�ĕ�������쐬"
+  "timeから、シンボルintervelに合わせて文字列を作成"
   (let ((time-pair (apply 'encode-time time)))
     (cond ((equal interval 'day) (format-time-string "%m/%d" time-pair))
           (t (format-time-string "%m/%d" time-pair)))))
@@ -181,13 +196,12 @@ When period is 'week, return done-data of only this week."
                (odoco:compare-time data days-before))
           (cons data result-data)))))
 
-
-
 (defun odoco:table ()
   (interactive)
   (odoco:make-table))
 
 (defun odoco:make-table (&optional interval period)
+  ;; make-table interval刻みの表を、period期間分作成して挿入する。
   (or interval (setq interval 'day))
   (or period (setq period 'week))
   (let (time-list)
@@ -198,7 +212,7 @@ When period is 'week, return done-data of only this week."
       )))
 
 (defun odoco:graph (&optional interval)
-  "graph�̐���"
+  "graphの生成"
   (interactive)
   (or interval (setq interval 'week))
   (setq odoco:time-list (odoco:make-time-list odoco:time-list))
@@ -206,7 +220,7 @@ When period is 'week, return done-data of only this week."
     (odoco:make-graph done-data)))
 
 (defun odoco:make-graph (tc-list)
-  "���ԂƓx���̃R���X�Z���̃��X�g����A�O���t�𐶐�����B"
+  "時間と度数のコンスセルのリストから、グラフを生成する。"
   (let ((gdata-file odoco:graph-data-file-name)
         (gpic-file odoco:graph-file-name)
         (plt-file odoco:plt-file-name))
@@ -215,7 +229,7 @@ When period is 'week, return done-data of only this week."
     (odoco:insert-graph gpic-file)))
 
 (defun odoco:make-graph-data-file (tc-list gdata-file)
-  "tc-list��gdata-file�ɏ�������"
+  "tc-listをgdata-fileに書き込む"
   (let ((str ""))
     (dolist (point tc-list)
       (let ((x (car point))
@@ -228,15 +242,15 @@ When period is 'week, return done-data of only this week."
     (write-region str nil gdata-file)))
 
 (defun odoco:make-plt-file (gdata-file gpic-file plt-file)
-  "plt�t�@�C���̍쐬"
+  "pltファイルの作成"
   (let ((plt-conf (odoco:make-plt-conf gdata-file
                                           gpic-file 
                                           odoco:plt-const
-                                          odoco:plt-option))) ;������̍쐬
+                                          odoco:plt-option))) ;文字列の作成
     (write-region plt-conf nil plt-file)))
 
 (defun odoco:make-plt-conf (gdata-file gpic-file plt-const plt-option)
-  "plt�t�@�C���ɏ������ޕ�����̍쐬"
+  "pltファイルに書き込む文字列の作成"
   (let ((extention (cadr (split-string gpic-file "\\."))))
     (let ((first (concat "set terminal " extention))
           (second (concat "set output \"" gpic-file "\""))
@@ -245,12 +259,12 @@ When period is 'week, return done-data of only this week."
       (concat first "\n" second "\n" third "\n" fourth))))
 
 (defun odoco:submit-gnuplot (gdata-file gpic-file plt-file)
-  "��������plt�t�@�C���𐶐����Agnuplot�Ɏ��s������"
+  "引数からpltファイルを生成し、gnuplotに実行させる"
   (odoco:make-plt-file gdata-file gpic-file plt-file)
   (start-process "emacs-wgnuplot" nil odoco:gnuplot-command plt-file))
 
 (defun odoco:insert-graph (gpic-name)
-  "gnuplot�Ő��������摜��}��"
+  "gnuplotで生成した画像を挿入"
   (insert "\n")
   (insert-image (create-image gpic-name))
   (insert "\n"))
