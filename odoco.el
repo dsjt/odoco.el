@@ -62,84 +62,18 @@
   "this is a document")
 
 ;; interactive functions
+(defun odoco:table ()
+  (interactive)
+  (odoco:make-table))
+(defun odoco:graph (&optional interval)
+  "graphの生成"
+  (interactive)
+  (or interval (setq interval 'week))
+  (setq odoco:time-list (odoco:make-time-list odoco:time-list))
+  (let ((done-data (odoco:make-count-data odoco:time-list)))
+    (odoco:make-graph done-data)))
 
-(defun odoco:add-time-list (time-list time)
-  "Add time to time-list."
-  (cons time time-list))
-
-(defun odoco:make-time-list ()
-  "Search \"DONE ... CLOSED ...\", and add global time-list"
-  ;; bufferから正規表現で検索。time-listを作成する。listの各要素もリスト。
-  ;; 各要素は、(0 41 11 7 9 2014 0 nil 32400)てな感じの、decode-timeの返り値と同じ形式。
-  ;; だから、返り値は、((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいな感じ。
-  (let (time-list)
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
-                                nil
-                                t)
-        (let ((time (odoco:encode-time (match-string 4))))
-          (setq time-list (odoco:add-time-list time-list time)))))
-    (odoco:sort-with-time time-list)))
-
-(defun odoco:encode-time (dtime)
-  "Encode the time from buffer to a list format.
- [2014/09/20 日 11:24] -> '(0 24 11 20 9 2014 0 nil 32400)"
-  ;; バッファから抜き出したorg形式の文字列を、decode-timeの返り値と同じ形に。返り値は、そのまま、(apply 'encode-time ここ)　につっこめる。
-  ;; これ、make-table内でしか使わないだろうから、なくしてもいい。
-  (let ((year (string-to-number (substring dtime 1 5)))
-        (month (string-to-number (substring dtime 6 8)))
-        (day (string-to-number (substring dtime 9 11)))
-        (hour (string-to-number (substring dtime 14 16)))
-        (min (string-to-number (substring dtime 17 19)))
-        (sec 0)
-        (dow (let ((d (substring dtime 12 13)))
-               (cond ((equal d "日") 0)
-                     ((equal d "月") 1)
-                     ((equal d "火") 2)
-                     ((equal d "水") 3)
-                     ((equal d "木") 4)
-                     ((equal d "金") 5)
-                     ((equal d "土") 6)))))
-    (list sec min hour day month year dow nil 32400)))
-
-;; (defun odoco:decode-time (etime)
-;;   "'(0 24 11 20 9 2014 0 nil 32400) -> [2014/09/20 日 11:24]"
-;;   ;; encode-timeを作ったし、対応するdecodeも作ったほうがいいかなって。でもいらないね。
-;;   (let ((dow (cond ((equal (nth 6 etime) 0) "日")
-;;                     ((equal (nth 6 etime) 1) "月")
-;;                     ((equal (nth 6 etime) 2) "火")
-;;                     ((equal (nth 6 etime) 3) "水")
-;;                     ((equal (nth 6 etime) 4) "木")
-;;                     ((equal (nth 6 etime) 5) "金")
-;;                     ((equal (nth 6 etime) 6) "土")))
-;;         (str (format-time-string "[%Y/%m/%d buf %R]"
-;;                                  (apply 'encode-time etime))))
-;;     (replace-regexp-in-string "buf" dow str)))
-
-(defun odoco:sort-with-time (time-list)
-  (sort time-list 'odoco:compare-time))
-
-(defun odoco:compare-time (time1 time2)
-  "compare time1 time2.
-time1 and time2 is encoded (by encode-time function) and  one for example '(21518 5001)."
-  (let ((etime1 (apply 'encode-time time1))
-        (etime2 (apply 'encode-time time2)))
-    (odoco:compare-any-list etime1 etime2)))
-
-(defun odoco:compare-any-list (list1 list2)
-  "Compare list1 and list2.
-Compare car of list1 and car of list2. 
-When former is bigger than latter, return t. When former is less than latter return nil. Otherwise start to compare cadr of list1 and cadr of list2 recursively. If all factor of list1 and list2 is equall, return t.
-Even if length are different, this function do not error."
-  (cond ((and (null list1) (null list2)) t)
-        ((or (null list1) (null list2)) nil)
-        (t       
-         (let ((item1 (car list1))
-               (item2 (car list2)))
-           (cond ((> item1 item2) t)
-                 ((< item1 item2) nil)
-                 (t (odoco:compare-any-list (cdr list1) (cdr list2))))))))
+;;
 
 (defun odoco:make-count-data (time-list interval)
   ;; ((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいなtime-listから、time-count-dataを作成する。時間とその度数を対にしたもの。
@@ -216,10 +150,6 @@ When period is 'week, return done-data of only this week."
         (dt (apply 'encode-time day)))                ;ntは(hi . lo)
     (decode-time (time-subtract dt nt))))
 
-(defun odoco:table ()
-  (interactive)
-  (odoco:make-table))
-
 (defun odoco:make-table (&optional interval period)
   ;; make-table interval刻みの表を、period期間分作成して挿入する。
   (or interval (setq interval 'day))
@@ -228,14 +158,6 @@ When period is 'week, return done-data of only this week."
     (setq time-list (odoco:make-time-list))
     (let ((done-data (odoco:make-count-data time-list interval)))
       (odoco:insert-table done-data interval period))))
-
-(defun odoco:graph (&optional interval)
-  "graphの生成"
-  (interactive)
-  (or interval (setq interval 'week))
-  (setq odoco:time-list (odoco:make-time-list odoco:time-list))
-  (let ((done-data (odoco:make-count-data odoco:time-list)))
-    (odoco:make-graph done-data)))
 
 (defun odoco:make-graph (tc-list)
   "時間と度数のコンスセルのリストから、グラフを生成する。"
@@ -286,6 +208,46 @@ When period is 'week, return done-data of only this week."
   (insert "\n")
   (insert-image (create-image gpic-name))
   (insert "\n"))
+
+
+;;
+
+;; functions from buffer to time-list
+
+(defun odoco:make-time-list ()
+  "Search \"DONE ... CLOSED ...\", and add global time-list"
+  ;; bufferから正規表現で検索。time-listを作成する。listの各要素もリスト。
+  ;; 各要素は、(0 41 11 7 9 2014 0 nil 32400)てな感じの、decode-timeの返り値と同じ形式。
+  ;; だから、返り値は、((0 41 11 7 9 2014 0 nil 32400) (0 14 22 5 9 2014 5 nil 32400))みたいな感じ。
+  (let (time-list)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "\\(* DONE \\)\\(.+\\)\\(\n *CLOSED: \\)\\(.*\\)"
+                                nil
+                                t)
+        (let ((time (odoco:encode-time (match-string 4))))
+          (push time time-list))))
+    (sort time-list 'time-less-p)))
+
+(defun odoco:encode-time (date)
+  "Encode the time from buffer to a list format.
+ [2014/09/20 日 11:24] -> '(21532 58688)"
+  (let ((year (string-to-number (substring date 1 5)))
+        (month (string-to-number (substring date 6 8)))
+        (day (string-to-number (substring date 9 11)))
+        (hour (string-to-number (substring date 14 16)))
+        (min (string-to-number (substring date 17 19)))
+        (sec 0)
+        (dow (let ((d (substring date 12 13)))
+               (cond ((equal d "日") 0)
+                     ((equal d "月") 1)
+                     ((equal d "火") 2)
+                     ((equal d "水") 3)
+                     ((equal d "木") 4)
+                     ((equal d "金") 5)
+                     ((equal d "土") 6)))))
+    (apply 'encode-time (list sec min hour day month year dow nil 32400))))
+
 
 (provide 'odoco:count)
 ;;; odoco.el ends here
