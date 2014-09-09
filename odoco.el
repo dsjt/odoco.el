@@ -112,7 +112,8 @@
 
 (defun odoco:compare-time (time1 time2)
   "compare time1 time2.
-time1 and time2 is encoded (by encode-time) and  one for example '(21518 5001)."
+time1 and time2 is encoded (by encode-time) and  one for example '(21518 5001).
+"
   (let ((etime1 (apply 'encode-time time1))
         (etime2 (apply 'encode-time time2)))
     (let ((a1 (car etime1))
@@ -164,9 +165,18 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
 (defun odoco:make-period-data (done-data period)
   "filter done-data with period.
 When period is 'week, return done-data of only this week."
-  (let ((today (current-time))
-        (days-before)))
-  )
+;; assume done data is list of data. ex. (year month day)
+  (let* ((today (current-time))
+         (days-before (cond ((eq period 'week) (- today (- 7 1)))
+                            (t (- today (- 7 1)))))
+         result-data)
+    (dolist (data done-data result-data)
+      (if (and (odoco:compare-time today data)
+               (odoco:compare-time data days-before))
+          (cons data result-data)))))
+
+
+
 (defun odoco:table ()
   (interactive)
   (odoco:make-table))
