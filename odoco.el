@@ -35,6 +35,8 @@
 (require 'cl)
 (require 'time-date)
 
+(require 'gnuplotwin)
+
 ;; variables
 
 (defvar odoco:time-list nil)
@@ -70,9 +72,10 @@
   "graphの生成"
   (interactive)
   (or interval (setq interval 'week))
-  (setq odoco:time-list (odoco:make-time-list odoco:time-list))
-  (let ((done-data (odoco:make-count-data odoco:time-list)))
-    (odoco:make-graph done-data)))
+  (let* ((time-list (odoco:make-time-list))
+         (count-data-list (odoco:make-count-data time-list interval)))
+    (odoco:insert-graph count-data-list interval period)))
+
 
 ;; function to manage interactiove option
 
@@ -84,15 +87,23 @@
          (count-data-list (odoco:make-count-data time-list interval)))
     (odoco:insert-table count-data-list interval period)))
 
+(defun odoco:make-graph (tc-list)
+  "時間と度数のコンスセルのリストから、グラフを生成する。"
+  (let ((gdata-file odoco:graph-data-file-name)
+        (gpic-file odoco:graph-file-name)
+        (plt-file odoco:plt-file-name))
+    (odoco:make-graph-data-file tc-list gdata-file)
+    (odoco:submit-gnuplot gdata-file gpic-file plt-file)
+    (odoco:insert-graph gpic-file)))
+
+
 ;; functions from count-data to table
 
 (defun odoco:insert-table (data-count-list interval period)
   ""
-  ;; periodはシンボル。
-  ;; ここから、period分だけ抽出する。
   (let ((period-dcl (odoco:filter-with-period data-count-list
-                                               interval
-                                               period)))
+                                              interval
+                                              period)))
     (dolist (data period-dcl)
       (let ((day (odoco:format-time-with-interval (car data) interval))
             (count (cdr data)))
@@ -118,16 +129,17 @@
 (defun odoco:filter-with-period (data-count-list interval period)
   "filter data-count-list with period.
 When period is 'week, return data-count-list of only this week."
-  ;; periodは'weekとか。
+  ;; I am looking for new way of this function.
   (cond ((and (eq interval 'day) (eq period 'week))
          (let* ((today (time-to-days (current-time)))
-                (days-before (- today 6)))
-           (loop for x in data-count-list
-                 if (let ((td (time-to-days (car x))))
-                      (and (<= td today) (>= td days-before)))
-                 collect x into result-dcl
-                 finally return result-dcl)))
-        (t t)))
+                (days-list (mapcar #'(lambda (x) (- today x)) '(0 1 2 3 4 5 6)))
+                (result-dcl (loop for x in days-list
+                                  if (equal x (time-to-days (caar data-count-list))) 
+                                  collect (pop data-count-list) into result-dcl
+                                  else 
+                                  collect (cons (days-to-time (- x (time-to-days '(0 0)))) 0) into result-dcl
+                                  finally return result-dcl)))
+           result-dcl))))
 
 ;; functions from buffer to time-list
 
@@ -181,15 +193,6 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
 
 
 ;;
-(defun odoco:make-graph (tc-list)
-  "時間と度数のコンスセルのリストから、グラフを生成する。"
-  (let ((gdata-file odoco:graph-data-file-name)
-        (gpic-file odoco:graph-file-name)
-        (plt-file odoco:plt-file-name))
-    (odoco:make-graph-data-file tc-list gdata-file)
-    (odoco:submit-gnuplot gdata-file gpic-file plt-file)
-    (odoco:insert-graph gpic-file)))
-
 (defun odoco:make-graph-data-file (tc-list gdata-file)
   "tc-listをgdata-fileに書き込む"
   (let ((str ""))
@@ -225,12 +228,14 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
   (odoco:make-plt-file gdata-file gpic-file plt-file)
   (start-process "emacs-wgnuplot" nil odoco:gnuplot-command plt-file))
 
-(defun odoco:insert-graph (gpic-name)
+(defun odoco:insert-graph (count-data-list interval period)
+  "insert graph"
+  (gw:init)
+  (gw:draw-line-graph (odoco:make-graph-data))
+  )
 
-  "gnuplotで生成した画像を挿入"
-  (insert "\n")
-  (insert-image (create-image gpic-name))
-  (insert "\n"))
+(defun gw:init ()
+  (make-graph-data-file))
 
 (provide 'odoco:count)
 ;;; odoco.el ends here
