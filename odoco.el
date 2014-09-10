@@ -68,10 +68,11 @@
   (interactive)
   (odoco:make-table))
 
-(defun odoco:graph (&optional interval)
+(defun odoco:graph (&optional interval period)
   "graphの生成"
   (interactive)
-  (or interval (setq interval 'week))
+  (or interval (setq interval 'day))
+  (or period (setq period 'week))
   (let* ((time-list (odoco:make-time-list))
          (count-data-list (odoco:make-count-data time-list interval)))
     (odoco:insert-graph count-data-list interval period)))
@@ -228,14 +229,12 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
   (odoco:make-plt-file gdata-file gpic-file plt-file)
   (start-process "emacs-wgnuplot" nil odoco:gnuplot-command plt-file))
 
+(defun odoco:format-data-for-graph (count-data-list)
+  (mapcar #'(lambda (x) (cons (format-time-string "%m/%d" (car x)) (cdr x))) count-data-list))
+
 (defun odoco:insert-graph (count-data-list interval period)
   "insert graph"
-  (gw:init)
-  (gw:draw-line-graph (odoco:make-graph-data))
-  )
-
-(defun gw:init ()
-  (make-graph-data-file))
+  (gw:draw-line-graph (odoco:format-data-for-graph count-data-list)))
 
 (provide 'odoco:count)
 ;;; odoco.el ends here
