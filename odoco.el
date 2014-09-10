@@ -50,19 +50,6 @@
 (defvar odoco:default-plt-option " w l notitle"
   "this is a document")
 
-(defcustom odoco:graph-file-name odoco:default-graph-file-name
-  "this is a document")
-(defcustom odoco:plt-file-name odoco:default-plt-file-name
-  "this is a document")
-(defcustom odoco:graph-data-file-name odoco:default-graph-data-file-name
-  "this is a document")
-(defcustom odoco:plt-const odoco:default-plt-const
-  "this is a document")
-(defcustom odoco:plt-option odoco:default-plt-option
-  "this is a document")
-(defcustom odoco:gnuplot-command "wgnuplot"
-  "this is a document")
-
 ;; interactive functions
 (defun odoco:table ()
   (interactive)
