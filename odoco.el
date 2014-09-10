@@ -105,7 +105,6 @@
           into result
           finally return result)))
 
-
 ;; (defun odoco:filter-with-period (data-count-list interval period)
 ;;   "filter data-count-list with period.
 ;; When period is 'week, return data-count-list of only this week."
@@ -171,43 +170,7 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
            (eq time1 time2)))
         (t (error "this is an error in odoco:equal-time"))))
 
-
 ;;
-(defun odoco:make-graph-data-file (tc-list gdata-file)
-  "tc-listをgdata-fileに書き込む"
-  (let ((str ""))
-    (dolist (point tc-list)
-      (let ((x (car point))
-            (y (cdr point)))
-        (setq str (concat (number-to-string x)
-                          " "
-                          (number-to-string y)
-                          "\n"
-                          str))))
-    (write-region str nil gdata-file)))
-
-(defun odoco:make-plt-file (gdata-file gpic-file plt-file)
-  "pltファイルの作成"
-  (let ((plt-conf (odoco:make-plt-conf gdata-file
-                                          gpic-file 
-                                          odoco:plt-const
-                                          odoco:plt-option))) ;文字列の作成
-    (write-region plt-conf nil plt-file)))
-
-(defun odoco:make-plt-conf (gdata-file gpic-file plt-const plt-option)
-  "pltファイルに書き込む文字列の作成"
-  (let ((extention (cadr (split-string gpic-file "\\."))))
-    (let ((first (concat "set terminal " extention))
-          (second (concat "set output \"" gpic-file "\""))
-          (third plt-const)
-          (fourth (concat "plot \"" gdata-file "\"" plt-option)))
-      (concat first "\n" second "\n" third "\n" fourth))))
-
-(defun odoco:submit-gnuplot (gdata-file gpic-file plt-file)
-  "引数からpltファイルを生成し、gnuplotに実行させる"
-  (odoco:make-plt-file gdata-file gpic-file plt-file)
-  (start-process "emacs-wgnuplot" nil odoco:gnuplot-command plt-file))
-
 (defun odoco:format-data-for-graph (count-data-list)
   (mapcar #'(lambda (x) (cons (format-time-string "%m/%d" (car x)) (cdr x))) count-data-list))
 
