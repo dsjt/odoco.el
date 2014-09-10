@@ -66,17 +66,15 @@
 ;; interactive functions
 (defun odoco:table ()
   (interactive)
-  (odoco:make-table))
+  (odoco:make-table 'day 'week))
 
 (defun odoco:graph (&optional interval period)
   "graphの生成"
   (interactive)
   (or interval (setq interval 'day))
   (or period (setq period 'week))
-  (let* ((time-list (odoco:make-time-list))
-         (count-data-list (odoco:make-count-data time-list interval)))
+  (let* ((count-data-list (odoco:make-count-data interval period)))
     (odoco:insert-graph count-data-list interval period)))
-
 
 ;; function to manage interactiove option
 
@@ -84,8 +82,7 @@
   ;; make-table interval刻みの表を、period期間分作成して挿入する。
   (or interval (setq interval 'day))
   (or period (setq period 'week))
-  (let* ((time-list (odoco:make-time-list))
-         (count-data-list (odoco:make-count-data time-list interval)))
+  (let* ((count-data-list (odoco:make-count-data interval period)))
     (odoco:insert-table count-data-list interval period)))
 
 (defun odoco:make-graph (tc-list)
@@ -97,50 +94,45 @@
     (odoco:submit-gnuplot gdata-file gpic-file plt-file)
     (odoco:insert-graph gpic-file)))
 
-
 ;; functions from count-data to table
 
 (defun odoco:insert-table (data-count-list interval period)
   ""
-  (let ((period-dcl (odoco:filter-with-period data-count-list
-                                              interval
-                                              period)))
-    (dolist (data period-dcl)
-      (let ((day (odoco:format-time-with-interval (car data) interval))
-            (count (cdr data)))
-        (insert (concat day " " (number-to-string count) "\n"))))))
+  (dolist (data period-dcl)
+    (let ((day (odoco:format-time-with-interval (car data) interval))
+          (count (cdr data)))
+      (insert (concat day " " (number-to-string count) "\n")))))
 
 ;; functions from time-list to count-data
 
-(defun odoco:make-count-data (time-list interval)
-  ;; time-listから、count-data-listを作成する。時間とその度数を対にしたもの。
-  ;; time-listの構造に依存しないように注意。
-  ;; ただし、その時間は、intervalに適した形で比較する。構造は変えない。
-  (let (result-cdl)
-    (dolist (time time-list result-cdl)
-      (if (null result-cdl)
-          (push (cons time 1) result-cdl)
-        (let ((before (car result-cdl)))
-          (if (odoco:equal-time time (car before) interval)
-              (push (cons (car before) (1+ (cdr before)))
-                    (cdr result-cdl))
-            (push (cons time 1)
-                  result-cdl)))))))
+(defun odoco:make-count-data (interval period)
+  ""
+  (let* ((time-list (odoco:make-time-list))
+         (today (time-to-days (current-time)))
+         (days-list (mapcar #'(lambda (x) (- today x)) '(0 1 2 3 4 5 6))))
 
-(defun odoco:filter-with-period (data-count-list interval period)
-  "filter data-count-list with period.
-When period is 'week, return data-count-list of only this week."
-  ;; I am looking for new way of this function.
-  (cond ((and (eq interval 'day) (eq period 'week))
-         (let* ((today (time-to-days (current-time)))
-                (days-list (mapcar #'(lambda (x) (- today x)) '(0 1 2 3 4 5 6)))
-                (result-dcl (loop for x in days-list
-                                  if (equal x (time-to-days (caar data-count-list))) 
-                                  collect (pop data-count-list) into result-dcl
-                                  else 
-                                  collect (cons (days-to-time (- x (time-to-days '(0 0)))) 0) into result-dcl
-                                  finally return result-dcl)))
-           result-dcl))))
+    (loop for x in days-list
+          collect (cons (days-to-time (- x (time-to-days '(0 0))))
+                        (loop for y in time-list
+                              count (eq x (time-to-days y))))
+          into result
+          finally return result)))
+
+
+;; (defun odoco:filter-with-period (data-count-list interval period)
+;;   "filter data-count-list with period.
+;; When period is 'week, return data-count-list of only this week."
+;;   ;; I am looking for new way of this function.
+;;   (cond ((and (eq interval 'day) (eq period 'week))
+;;          (let* ((today (time-to-days (current-time)))
+;;                 (days-list (mapcar #'(lambda (x) (- today x)) '(0 1 2 3 4 5 6)))
+;;                 (result-dcl (loop for x in days-list
+;;                                   if (equal x (time-to-days (caar data-count-list))) 
+;;                                   collect (pop data-count-list) into result-dcl
+;;                                   else 
+;;                                   collect (cons (days-to-time (- x (time-to-days '(0 0)))) 0) into result-dcl
+;;                                   finally return result-dcl)))
+;;            result-dcl))))
 
 ;; functions from buffer to time-list
 
@@ -234,7 +226,7 @@ For example, 2014/08/31 22:11 is equal to 2014/08/31 11:39 in terms of 'day.
 
 (defun odoco:insert-graph (count-data-list interval period)
   "insert graph"
-  (gw:draw-line-graph (odoco:format-data-for-graph count-data-list)))
+  (gw:draw-line-graph (odoco:format-data-for-graph (odoco:filter-with-period count-data-list interval period))))
 
 (provide 'odoco:count)
 ;;; odoco.el ends here
